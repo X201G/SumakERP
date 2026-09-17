@@ -1,0 +1,94 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Purchase Returns - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Purchase Returns{% endblock %}
+
+{% block content %}
+
+{% set base_qs = 'q=' ~ (q|urlencode) ~ '&supplier_id=' ~ supplier_id ~ '&from_date=' ~ from_date ~ '&to_date=' ~ to_date %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_purchase_orders') %}<a href="/manufacturing/purchase-orders" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-orders') %}active{% endif %}">🛒 Purchase Orders</a>{% endif %}
+    {% if has_perm('mfg_purchase_grn') %}<a href="/manufacturing/purchase-grn" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-grn') %}active{% endif %}">📥 Purchase GRN</a>{% endif %}
+    {% if has_perm('mfg_purchase_invoices') %}<a href="/manufacturing/purchase-invoices" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-invoices') %}active{% endif %}">🧾 Purchase Invoices</a>{% endif %}
+    {% if has_perm('mfg_purchase_returns') %}<a href="/manufacturing/purchase-returns" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-returns') %}active{% endif %}">↩️ Purchase Returns</a>{% endif %}
+    {% if has_perm('mfg_outstanding') %}<a href="/manufacturing/purchase-daybook" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-daybook') %}active{% endif %}">📅 Purchase Day Book</a>{% endif %}
+</div>
+
+{% if has_perm('mfg_purchase_returns', 'create') %}
+<a href="/manufacturing/purchase-returns/add" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ New Purchase Return</a>
+{% endif %}
+
+<form method="GET" id="filterForm" style="margin-bottom: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Supplier</label>
+        <select name="supplier_id" onchange="document.getElementById('filterForm').submit()" style="min-width: 200px;">
+            <option value="">All Suppliers</option>
+            {% for s in suppliers %}
+            <option value="{{ s.id }}" {% if supplier_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>From Date</label>
+        <input type="date" name="from_date" value="{{ from_date }}" onchange="document.getElementById('filterForm').submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>To Date</label>
+        <input type="date" name="to_date" value="{{ to_date }}" onchange="document.getElementById('filterForm').submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Search</label>
+        <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Return no or supplier..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('filterForm').submit(); }, 400);">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="visibility: hidden;">Clear</label>
+        <a href="/manufacturing/purchase-returns" style="padding: 10px 0;">Clear Filters</a>
+    </div>
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Return No</th>
+            <th>Date</th>
+            <th>Supplier</th>
+            <th>Reason</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in returns %}
+        <tr>
+            <td><a href="/manufacturing/purchase-returns/{{ r.id }}">{{ r.return_no }}</a></td>
+            <td>{{ r.return_date }}</td>
+            <td>{{ r.supplier_name or '-' }}</td>
+            <td>{{ r.reason or '-' }}</td>
+            <td>₹{{ r.total_amount }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align: center; color: #999;">No purchase returns found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/purchase-returns?page={{ page - 1 }}&{{ base_qs }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/purchase-returns?page={{ page + 1 }}&{{ base_qs }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

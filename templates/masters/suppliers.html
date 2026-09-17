@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Supplier Master - SUMAK ERP{% endblock %}
+
+{% block page_title %}Supplier Master{% endblock %}
+
+{% block content %}
+        
+        <form method="POST" action="/suppliers/add">
+            <input type="text" name="name" placeholder="Enter Supplier name">
+            <input type="text" name="phone" placeholder="Enter Phone number">
+            <input type="text" name="email" placeholder="Enter Email number">
+            <input type="text" name="address" placeholder="Enter Address">
+            <input type="text" name="city" placeholder="Enter City name">
+            <input type="text" name="state" placeholder="Enter State name">
+            <input type="text" name="gst_number" placeholder="Enter GST Number">
+            <button type="submit">Save</button>
+        </form>
+
+        <input type="text" id="searchInput" placeholder="Search Supplier...">
+
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Supplier Name</th>
+                <th>Phone Number</th>
+                <th>Email ID</th>
+                <th>GST Number</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for supplier in suppliers %}
+            <tr>
+                <td>{{ supplier.id }}</td>
+                <td>{{ supplier.name }}</td>
+                <td>{{ supplier.phone }}</td>
+                <td>{{ supplier.email }}</td>
+                <td>{{ supplier.gst_number }}</td>
+                <td>
+                    <a href="/statement/payable/{{ supplier.id }}">Statement</a> |
+                    <a href="/suppliers/delete/{{ supplier.id }}">Delete</a>
+                </td>
+
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <script>
+                document.getElementById("searchInput").addEventListener("keyup", function() {
+            var input = this.value.toLowerCase();
+            var rows = document.querySelectorAll("table tbody tr");
+            rows.forEach(function(row) {
+                var text = row.innerText.toLowerCase();
+                if (text.includes(input)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        });
+        </script>
+{% endblock %}  

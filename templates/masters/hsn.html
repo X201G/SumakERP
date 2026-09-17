@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}HSN Master - SUMAK ERP{% endblock %}
+
+{% block page_title %}HSN Master{% endblock %}
+
+{% block content %}
+
+        {% if editing %}
+        <form method="POST" action="/hsn/edit/{{ hsn.id }}">
+            <input type="text" name="hsn_code" value="{{ hsn.hsn_code }}">
+            <input type="text" name="description" value="{{ hsn.description }}">
+            <input type="number" name="gst_rate" value="{{ hsn.gst_rate }}">
+            <button type="submit">Update</button>
+            <a href="/hsn" style="padding: 10px 16px; background: #6b6b6b; color: white; border-radius: 8px;">Cancel</a>
+        </form>
+        {% else %}
+        <form method="POST" action="/hsn/add">
+            <input type="text" name="hsn_code" placeholder="Enter HSN Code">
+            <input type="text" name="description" placeholder="Enter Description">
+            <input type="number" name="gst_rate" placeholder="Enter GST Rate (default 18)">
+            <button type="submit">Save</button>
+        </form>
+        {% endif %}
+
+        <input type="text" id="searchInput" placeholder="Search HSN...">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>HSN Code</th>
+                    <th>Description</th>
+                    <th>GST Rate</th>
+                    <th>Created At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for hsn in hsns %}
+            <tr>
+                <td>{{ hsn.hsn_code }}</td>
+                <td>{{ hsn.description }}</td>
+                <td>{{ hsn.gst_rate }}</td>
+                <td>{{ hsn.created_at }}</td>
+                <td>
+                    <a href="/hsn/edit/{{ hsn.id }}">Edit</a> |
+                    <a href="/hsn/delete/{{ hsn.id }}">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <script>
+                document.getElementById("searchInput").addEventListener("keyup", function() {
+            var input = this.value.toLowerCase();
+            var rows = document.querySelectorAll("table tbody tr");
+            rows.forEach(function(row) {
+                var text = row.innerText.toLowerCase();
+                if (text.includes(input)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        });
+        </script>
+{% endblock %}

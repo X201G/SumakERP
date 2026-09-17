@@ -1,0 +1,79 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Item Master - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Item Master{% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_rods') %}<a href="/manufacturing/rods" class="tab-btn {% if request.path.startswith('/manufacturing/rods') %}active{% endif %}">🔩 Rod Master</a>{% endif %}
+    {% if has_perm('mfg_tools') %}<a href="/manufacturing/tools" class="tab-btn {% if request.path.startswith('/manufacturing/tools') %}active{% endif %}">🛠️ Tool Master</a>{% endif %}
+    {% if has_perm('mfg_brands') %}<a href="/manufacturing/brands" class="tab-btn {% if request.path.startswith('/manufacturing/brands') %}active{% endif %}">🏷️ Brand Master</a>{% endif %}
+    {% if has_perm('mfg_items') %}<a href="/manufacturing/items" class="tab-btn {% if request.path.startswith('/manufacturing/items') %}active{% endif %}">🧰 Item Master</a>{% endif %}
+</div>
+
+{% if has_perm('mfg_items', 'create') %}
+<a href="/manufacturing/items/add" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ Add Item</a>
+{% endif %}
+<a href="/manufacturing/item-categories" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">Manage Categories →</a>
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px;">
+    <input type="hidden" name="page" value="1">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by name, category or HSN code..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Item Name</th>
+            <th>Category</th>
+            <th>Unit</th>
+            <th>HSN</th>
+            <th>Tax Rate</th>
+            <th>Purchase Price</th>
+            <th>Print Description</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.item_name }}</td>
+            <td>{{ item.category_name or '-' }}</td>
+            <td>{{ item.unit_name or '-' }}</td>
+            <td>{{ item.hsn_code or '-' }}</td>
+            <td>{{ item.tax_rate }}%</td>
+            <td>₹{{ item.purchase_price }}</td>
+            <td>{{ item.print_description or '-' }}</td>
+            <td>
+                {% if has_perm('mfg_items', 'edit') %}<a href="/manufacturing/items/edit/{{ item.id }}">Edit</a>{% endif %}
+                {% if has_perm('mfg_items', 'edit') and has_perm('mfg_items', 'delete') %} | {% endif %}
+                {% if has_perm('mfg_items', 'delete') %}<a href="/manufacturing/items/delete/{{ item.id }}" onclick="return confirm('Delete this item?')">Delete</a>{% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align: center; color: #999;">No items found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/items?page={{ page - 1 }}&q={{ q | urlencode }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/items?page={{ page + 1 }}&q={{ q | urlencode }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

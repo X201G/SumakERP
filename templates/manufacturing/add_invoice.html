@@ -1,0 +1,105 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}New Invoice - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}New Invoice{% endblock %}
+
+{% block content %}
+
+<div style="background: white; padding: 16px 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 16px;">
+    <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Batch</div>
+    <div style="font-weight: 600;">{{ batch.batch_no }} — {{ batch.tool_name }} — to {{ batch.customer_name }}</div>
+    {% if last_price %}
+    <div style="font-size: 12px; color: #6b6b6b; margin-top: 6px;">Last price charged to this customer for this tool: ₹{{ last_price }}</div>
+    {% endif %}
+</div>
+
+{% if pending_orders %}
+<div id="pendingOrderNotice" style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00; display: flex; justify-content: space-between; align-items: center;">
+    <span>This customer has {{ pending_orders|length }} open order line(s) for this tool.</span>
+    <button type="button" onclick="showPendingOrderPopup()" style="background: #92600a; padding: 6px 14px; font-size: 12px;">View Pending Orders</button>
+</div>
+{% endif %}
+
+<form method="POST" action="/manufacturing/batches/{{ batch.id }}/invoice/new">
+    <input type="hidden" name="order_item_id" id="order_item_id">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Date</label>
+        <input type="date" name="invoice_date" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity</label>
+        <input type="number" name="quantity" id="invoice_quantity" value="{{ batch.quantity }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Rate (₹ per piece)</label>
+        <input type="number" step="0.01" name="rate" id="invoice_rate" value="{{ last_price or '' }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tax Rate (%)</label>
+        <input type="number" step="0.01" name="tax_rate" value="18">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Credit Days</label>
+        <input type="number" name="cr_days" value="0" style="width: 100px;">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks">
+    </div>
+
+    <button type="submit">Create Invoice</button>
+</form>
+
+{% if pending_orders %}
+<script>
+    const pendingOrders = [
+        {% for p in pending_orders %}
+        {itemId: {{ p.item_id }}, orderNo: {{ p.order_no|tojson }}, poNo: {{ (p.po_no or '')|tojson }}, pendingQty: {{ p.pending_qty }}, rate: {{ p.rate if p.rate is not none else 'null' }}},
+        {% endfor %}
+    ];
+
+    function showPendingOrderPopup() {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 10000; display:flex; align-items:center; justify-content:center;';
+        const box = document.createElement('div');
+        box.style.cssText = 'background:white; border-radius:12px; padding:24px; max-width:600px; width:90%; max-height:80vh; overflow-y:auto;';
+        const heading = document.createElement('h3');
+        heading.innerText = '📋 Pending orders for this customer + tool - click one to use it:';
+        heading.style.marginBottom = '16px';
+        box.appendChild(heading);
+        pendingOrders.forEach(function(item) {
+            const itemRow = document.createElement('div');
+            itemRow.style.cssText = 'border:1px solid #e0ddd8; border-radius:8px; padding:12px; margin-bottom:8px; cursor:pointer;';
+            itemRow.innerHTML = '<strong>' + item.orderNo + '</strong>' + (item.poNo ? ' (PO: ' + item.poNo + ')' : '') +
+                '<br>Pending Qty: ' + item.pendingQty + (item.rate ? ' | Rate: ₹' + item.rate : '');
+            itemRow.onmouseover = function() { itemRow.style.background = '#f5f3ef'; };
+            itemRow.onmouseout = function() { itemRow.style.background = 'white'; };
+            itemRow.onclick = function() {
+                document.getElementById('order_item_id').value = item.itemId;
+                document.getElementById('invoice_quantity').value = item.pendingQty;
+                if (item.rate) { document.getElementById('invoice_rate').value = item.rate; }
+                document.body.removeChild(overlay);
+            };
+            box.appendChild(itemRow);
+        });
+        const skipBtn = document.createElement('button');
+        skipBtn.type = 'button';
+        skipBtn.innerText = 'Skip - bill manually';
+        skipBtn.style.cssText = 'background:#6b6b6b; margin-top:12px;';
+        skipBtn.onclick = function() { document.body.removeChild(overlay); };
+        box.appendChild(skipBtn);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+    }
+
+    document.addEventListener('DOMContentLoaded', showPendingOrderPopup);
+</script>
+{% endif %}
+
+{% endblock %}

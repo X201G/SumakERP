@@ -1,0 +1,97 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Add Rod Entry - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Add Rod Entry{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/manufacturing/rods/add">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Date</label>
+        <input type="date" name="rod_date" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Grade</label>
+        <input type="text" name="grade" placeholder="e.g. K20, YG-1">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Diameter (mm)</label>
+        <input type="number" step="0.01" name="diameter_mm" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Length (mm)</label>
+        <input type="number" step="0.01" name="length_mm" value="330" max="330">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Weight (kg)</label>
+        <input type="number" step="0.001" name="weight_kg">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity</label>
+        <input type="number" name="quantity" value="1" required>
+    </div>
+
+    <div style="width: 100%; background: #faf9f6; border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px;">
+        <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b6558; margin-bottom: 12px;">Purchase Pricing</div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap: 14px; max-width: 560px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Purchase Price (₹)</label>
+                <input type="number" step="0.01" name="purchase_price" id="purchase_price" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Discount (%)</label>
+                <input type="number" step="0.01" name="purchase_discount_percent" id="purchase_discount_percent" value="0" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Final Price (₹)</label>
+                <input type="text" id="final_purchase_price" readonly tabindex="-1" style="background: #eef6ff; border-color: #b8d8f5; font-weight: 700;">
+            </div>
+        </div>
+        <small style="color: #6b6b6b; display: block; margin-top: 10px;">This becomes the rod's cost rate, used in batch costing.</small>
+    </div>
+
+    <div style="width: 100%; background: #faf9f6; border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px;">
+        <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b6558; margin-bottom: 12px;">Sales Pricing (optional)</div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap: 14px; max-width: 560px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Sales Price (₹)</label>
+                <input type="number" step="0.01" name="sales_price" id="sales_price" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Discount (%)</label>
+                <input type="number" step="0.01" name="sales_discount_percent" id="sales_discount_percent" value="0" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Final Price (₹)</label>
+                <input type="text" id="final_sales_price" readonly tabindex="-1" style="background: #eef6ff; border-color: #b8d8f5; font-weight: 700;">
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+<script>
+    function recalcPricing() {
+        var pp = parseFloat(document.getElementById('purchase_price').value) || 0;
+        var pd = parseFloat(document.getElementById('purchase_discount_percent').value) || 0;
+        document.getElementById('final_purchase_price').value = (pp * (1 - pd / 100)).toFixed(2);
+        var sp = parseFloat(document.getElementById('sales_price').value) || 0;
+        var sd = parseFloat(document.getElementById('sales_discount_percent').value) || 0;
+        document.getElementById('final_sales_price').value = (sp * (1 - sd / 100)).toFixed(2);
+    }
+    recalcPricing();
+</script>
+
+{% endblock %}

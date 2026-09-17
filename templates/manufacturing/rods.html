@@ -1,0 +1,82 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Raw Material - Carbide Rod - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Raw Material (Carbide Rod){% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_rods') %}<a href="/manufacturing/rods" class="tab-btn {% if request.path.startswith('/manufacturing/rods') %}active{% endif %}">🔩 Rod Master</a>{% endif %}
+    {% if has_perm('mfg_tools') %}<a href="/manufacturing/tools" class="tab-btn {% if request.path.startswith('/manufacturing/tools') %}active{% endif %}">🛠️ Tool Master</a>{% endif %}
+    {% if has_perm('mfg_brands') %}<a href="/manufacturing/brands" class="tab-btn {% if request.path.startswith('/manufacturing/brands') %}active{% endif %}">🏷️ Brand Master</a>{% endif %}
+    {% if has_perm('mfg_items') %}<a href="/manufacturing/items" class="tab-btn {% if request.path.startswith('/manufacturing/items') %}active{% endif %}">🧰 Item Master</a>{% endif %}
+</div>
+
+{% if has_perm('mfg_rods', 'create') %}
+<a href="/manufacturing/rods/add" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ Add Rod Entry</a>
+{% endif %}
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px;">
+    <input type="hidden" name="page" value="1">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by grade or supplier..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Grade</th>
+            <th>Diameter (mm)</th>
+            <th>Length (mm)</th>
+            <th>Weight (kg)</th>
+            <th>Quantity</th>
+            <th>Supplier</th>
+            <th>Rate</th>
+            <th>Remarks</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for rod in rods %}
+        <tr>
+            <td>{{ rod.rod_date }}</td>
+            <td>{{ rod.grade }}</td>
+            <td>{{ rod.diameter_mm }}</td>
+            <td>{{ rod.length_mm }}</td>
+            <td>{{ rod.weight_kg or '-' }}</td>
+            <td>{{ rod.quantity }}</td>
+            <td>{{ rod.supplier_name }}</td>
+            <td>{{ rod.rate }}</td>
+            <td>{{ rod.remarks }}</td>
+            <td>
+                {% if has_perm('mfg_rods', 'edit') %}<a href="/manufacturing/rods/edit/{{ rod.id }}">Edit</a>{% endif %}
+                {% if has_perm('mfg_rods', 'edit') and has_perm('mfg_rods', 'delete') %} | {% endif %}
+                {% if has_perm('mfg_rods', 'delete') %}<a href="/manufacturing/rods/delete/{{ rod.id }}" onclick="return confirm('Delete this rod entry?')">Delete</a>{% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" style="text-align: center; color: #999;">No rod entries found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/rods?page={{ page - 1 }}&q={{ q | urlencode }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/rods?page={{ page + 1 }}&q={{ q | urlencode }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

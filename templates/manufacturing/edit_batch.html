@@ -1,0 +1,65 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Batch - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Batch: {{ batch.batch_no }}{% endblock %}
+
+{% block content %}
+
+{% if not untouched %}
+<div style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00;">
+    Only the customer and remarks can be changed here. Tool, rod and quantity are locked since work has already started on this batch (a stage, challan, or invoice already references it).
+</div>
+{% else %}
+<div style="background: #eef6ff; border: 1px solid #b8d8f5; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #14213d;">
+    Nothing has been sent for this batch yet, so tool, rod and quantity can still be changed - the rod reservation will be adjusted automatically.
+</div>
+{% endif %}
+
+<form method="POST" action="/manufacturing/batches/{{ batch.id }}/edit">
+
+    {% if untouched %}
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tool</label>
+        <select name="tool_id" required style="min-width: 320px;">
+            {% for t in tools %}
+            <option value="{{ t.id }}" {% if batch.tool_id == t.id %}selected{% endif %}>{{ t.item_code }} — {{ t.tool_name }} ({{ t.tool_type }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity</label>
+        <input type="number" name="quantity" value="{{ batch.quantity }}" required min="1">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Source Rod</label>
+        <select name="rod_id" required style="min-width: 320px;">
+            {% for r in rods %}
+            <option value="{{ r.id }}" {% if batch.rod_id == r.id %}selected{% endif %}>{{ r.rod_date }} - {{ r.grade or 'Rod' }} ({{ r.diameter_mm }}mm) - {{ r.remaining_length_mm }}mm remaining{% if r.id == batch.rod_id %} [current]{% endif %}</option>
+            {% endfor %}
+        </select>
+        <small style="color: #6b6b6b;">The old reservation is returned to its rod and the new one is taken automatically.</small>
+    </div>
+    {% endif %}
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Customer (optional)</label>
+        <select name="customer_id" style="min-width: 240px;">
+            <option value="">-- Not Assigned Yet --</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}" {% if batch.customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ batch.remarks or '' }}">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

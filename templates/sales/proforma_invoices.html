@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Proforma Invoices - SUMAK ERP{% endblock %}
+
+{% block page_title %}Proforma Invoices{% endblock %}
+
+{% block content %}
+
+<a href="/proforma-invoices/add" style="background: #e85d04; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">+ New Proforma Invoice</a>
+<form method="GET" action="/proforma-invoices" style="display: inline;" id="searchForm">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search Proforma Invoices..." style="padding: 10px 14px;" id="searchBox" autofocus autocomplete="off">
+    {% if search %}
+    <a href="/proforma-invoices" style="margin-left: 8px;">Clear</a>
+    {% endif %}
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>Proforma No</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>PO No</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for proforma in proformas %}
+        <tr>
+            <td>{{ proforma.proforma_no }}</td>
+            <td>{{ proforma.proforma_date }}</td>
+            <td>{{ proforma.customer_name }}</td>
+            <td>{{ proforma.po_no }}</td>
+            <td>{{ proforma.total_amount }}</td>
+            <td>{{ proforma.status }}</td>
+            <td>
+                <a href="/proforma-invoices/view/{{ proforma.id }}">View</a> |
+                <a href="/proforma-invoices/delete/{{ proforma.id }}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/proforma-invoices?page={{ page - 1 }}&search ={{ search }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/proforma-invoices?page={{ page + 1 }}&search ={{ search }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+<script>
+    var searchBox = document.getElementById("searchBox");
+    var timer;
+    var val = searchBox.value;
+    searchBox.value = "";
+    searchBox.value = val;
+    searchBox.addEventListener("input", function() {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            document.getElementById("searchForm").submit();
+        }, 10);
+    });
+</script>
+
+{% endblock %}

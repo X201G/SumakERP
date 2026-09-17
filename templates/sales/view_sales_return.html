@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Sales return Details - SUMAK ERP{% endblock %}
+
+{% block page_title %}Sales Return Details{% endblock %}
+
+{% block content %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px;">
+    <h3 style="margin-bottom: 16px;">Return: {{ ret.return_no }}</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+        <div><strong>Customer:</strong> {{ ret.customer_name }}</div>
+        <div><strong>Return Date:</strong> {{ ret.return_date }}</div>
+        <div><strong>Status:</strong> {{ ret.status }}</div>
+        <div><strong>Against Invoice:</strong> {{ ret.invoice_no }}</div>
+        <div><strong>Reason:</strong> {{ ret.reason }}</div>
+        <div><strong>Transporter:</strong> {{ ret.transporter_name }}</div>
+        <div><strong>Remarks:</strong> {{ ret.remarks }}</div>
+    </div>
+</div>
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px;">
+    <h3 style="margin-bottom: 16px;">Items</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>HSN</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Rate</th>
+                <th>Discount%</th>
+                <th>Tax%</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.product_name }}</td>
+                <td>{{ item.hsn_code }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit_name }}</td>
+                <td>{{ item.rate }}</td>
+                <td>{{ item.discount }}</td>
+                <td>{{ item.tax_rate }}</td>
+                <td>{{ item.amount }}</td>    
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; text-align: right;">
+    <h2>Total: ₹{{ ret.total_amount }}</h2>
+</div>
+
+<a href="/sales-returns" style="display: inline-block; margin-top: 16px; background: #1a1a2e; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">← Back to returns</a>
+
+{% endblock %}

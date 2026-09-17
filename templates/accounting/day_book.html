@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Day Book - SUMAK ERP{% endblock %}
+
+{% block page_title %}Day Book{% endblock %}
+
+{% block content %}
+
+<form method="GET" action="/daybook">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>From Date</label>
+        <input type="date" name="from_date" value="{{ from_date }}" onchange="this.form.submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>To Date</label>
+        <input type="date" name="to_date" value="{{ to_date }}" onchange="this.form.submit()">
+    </div>
+</form>
+
+<div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 16px 24px; min-width: 180px;">
+        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Total Received</div>
+        <div style="font-size: 22px; font-weight: 700; color: #2d6a4f;">{{ total_received }}</div>
+    </div>
+    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 16px 24px; min-width: 180px;">
+        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Total Paid</div>
+        <div style="font-size: 22px; font-weight: 700; color: #c1121f;">{{ total_paid }}</div>
+    </div>
+    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 16px 24px; min-width: 180px;">
+        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Net Cash Flow</div>
+        <div style="font-size: 22px; font-weight: 700;">{{ net }}</div>
+    </div>
+</div>
+
+<h3 style="margin-bottom: 12px;">By Payment Mode</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Mode</th>
+            <th>In</th>
+            <th>Out</th>
+            <th>Net</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in mode_summary %}
+        <tr>
+            <td style="text-transform: capitalize;">{{ m.mode }}</td>
+            <td style="color: #2d6a4f;">{{ m.in }}</td>
+            <td style="color: #c1121f;">{{ m.out }}</td>
+            <td style="font-weight: 600;">{{ m.net }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3 style="margin: 32px 0 12px;">Transactions</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Party</th>
+            <th>Mode</th>
+            <th>Reference</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in entries %}
+        <tr>
+            <td>{{ e.date }}</td>
+            <td style="color: {{ '#2d6a4f' if e.type == 'Received' else '#c1121f' }}; font-weight: 600;">{{ e.type }}</td>
+            <td>{{ e.party_name }}</td>
+            <td style="text-transform: capitalize;">{{ e.mode }}</td>
+            <td>{{ e.reference_no }}</td>
+            <td style="color: {{ '#2d6a4f' if e.type == 'Received' else '#c1121f' }};">{{ e.amount }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: #999;">No transactions in this date range</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/daybook?from_date={{ from_date }}&to_date={{ to_date }}&page={{ page - 1 }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/daybook?from_date={{ from_date }}&to_date={{ to_date }}&page={{ page + 1 }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

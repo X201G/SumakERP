@@ -1,0 +1,32 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit GRN - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit GRN: {{ grn.grn_no }}{% endblock %}
+
+{% block content %}
+
+<div style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00;">
+    Only transporter and remarks can be changed here. Line items and quantities are locked since stock has already moved - delete and re-create if those need to change and nothing has used that stock yet.
+</div>
+
+<form method="POST" action="/manufacturing/purchase-grn/{{ grn.id }}/edit">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Transporter</label>
+        <select name="transporter_id" style="min-width: 220px;">
+            <option value="">-- Select Transporter --</option>
+            {% for t in transporters %}
+            <option value="{{ t.id }}" {% if grn.transporter_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ grn.remarks or '' }}">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

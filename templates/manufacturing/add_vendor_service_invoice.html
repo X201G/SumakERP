@@ -1,0 +1,72 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Create Purchase Invoice - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Create Purchase Invoice{% endblock %}
+
+{% block content %}
+
+<a href="{{ back_url }}" style="display: inline-block; margin-bottom: 20px;">← Back to Batch</a>
+
+<div style="background: white; padding: 16px 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 16px;">
+    <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Vendor</div>
+    <div style="font-weight: 600;">{{ vendor_name }}</div>
+</div>
+
+<p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">Adjust the fields below to match the vendor's actual bill before saving - this creates a real Purchase Invoice against them.</p>
+
+<form method="POST" action="{{ form_action }}">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Invoice Date</label>
+        <input type="date" name="invoice_date" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Vendor's Invoice No</label>
+        <input type="text" name="sup_invoice_no">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Vendor's Invoice Date</label>
+        <input type="date" name="sup_invoice_date">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Credit Days</label>
+        <input type="number" name="cr_days" value="0" style="width: 100px;">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Due Date</label>
+        <input type="date" name="due_date">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 320px;">
+        <label>Description</label>
+        <input type="text" name="description" value="{{ default_description }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity</label>
+        <input type="number" step="0.01" name="quantity" value="{{ default_quantity }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Rate (₹)</label>
+        <input type="number" step="0.01" name="rate" value="{{ default_rate }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tax Rate (%)</label>
+        <input type="number" step="0.01" name="tax_rate" value="18">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks">
+    </div>
+
+    <button type="submit">Create Purchase Invoice</button>
+</form>
+
+{% endblock %}

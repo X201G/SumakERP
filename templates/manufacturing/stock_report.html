@@ -1,0 +1,166 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Stock Report - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Stock Report{% endblock %}
+
+{% block content %}
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px;">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by grade, tool name or item code..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 320px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<div style="display: flex; gap: 16px; margin-bottom: 20px;">
+    <div class="stat-card" style="flex: 1;">
+        <div class="stat-label">🔩 Raw Material Remaining</div>
+        <div class="stat-value">{{ total_rod_length }}mm</div>
+    </div>
+    <div class="stat-card" style="flex: 1;">
+        <div class="stat-label">💵 Raw Material Est. Value</div>
+        <div class="stat-value">₹{{ total_rod_value }}</div>
+    </div>
+    <div class="stat-card" style="flex: 1;">
+        <div class="stat-label">📊 Finished Tools In Hand</div>
+        <div class="stat-value">{{ total_finished_qty }} pcs</div>
+    </div>
+</div>
+
+<div class="tab-bar">
+    <button type="button" class="tab-btn active" id="tab-btn-raw" onclick="switchStockTab('raw')">🔩 Raw Material</button>
+    <button type="button" class="tab-btn" id="tab-btn-tools" onclick="switchStockTab('tools')">📊 Finished Tools</button>
+</div>
+
+<div id="tab-raw">
+    <small style="color: #6b6b6b; display: block; margin-bottom: 14px;">Click a grade to see every rod in it.</small>
+
+    {% for r in rod_summary %}
+    <div class="accordion-item">
+        <div class="accordion-header" onclick="toggleAccordion({{ loop.index0 }})">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <span style="font-size: 20px;">🔩</span>
+                <div>
+                    <div class="accordion-title">{{ r.grade or 'Rod' }}</div>
+                    <div class="accordion-sub">{{ r.rod_count }} rod{{ 's' if r.rod_count != 1 else '' }} in stock</div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 28px;">
+                <div style="text-align: right;">
+                    <div class="accordion-metric">{{ r.total_remaining_mm }}mm</div>
+                    <div class="accordion-sub">₹{{ r.est_value | round(2) }} est. value</div>
+                </div>
+                <span class="accordion-chevron" id="chevron-{{ loop.index0 }}">▾</span>
+            </div>
+        </div>
+        <div class="accordion-body" id="accordion-body-{{ loop.index0 }}" style="display: none;">
+            <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Purchase Date</th>
+                        <th>Diameter</th>
+                        <th>Original Length</th>
+                        <th>Remaining</th>
+                        <th>Rate</th>
+                        <th>Est. Value</th>
+                        <th>Supplier</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rod in rod_detail_by_grade.get(r.grade or 'Rod', []) %}
+                    <tr>
+                        <td>{{ rod.rod_date }}</td>
+                        <td>{{ rod.diameter_mm }}mm</td>
+                        <td>{{ rod.length_mm }}mm</td>
+                        <td>{{ rod.remaining_length_mm }}mm</td>
+                        <td>₹{{ rod.rate }}</td>
+                        <td>₹{{ rod.est_value | round(2) }}</td>
+                        <td>{{ rod.supplier_name or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div style="text-align: center; color: #999; padding: 40px; background: white; border-radius: 12px; border: 1px solid #e5e1d8;">No raw material stock</div>
+    {% endfor %}
+
+    <a href="/manufacturing/stock/rods" style="display: inline-block; margin-top: 8px;">Go to Raw Material master →</a>
+</div>
+
+<div id="tab-tools" style="display: none;">
+    <small style="color: #6b6b6b; display: block; margin-bottom: 14px;">Every tool with any stock activity - not started, at a vendor, ready to send, finished, or delivered.</small>
+    <div style="overflow-x: auto;">
+    <table>
+        <thead>
+            <tr>
+                <th>Item Code</th>
+                <th>Tool</th>
+                <th>Type</th>
+                <th>Not Started</th>
+                <th>Blank Making</th>
+                <th>Tool Manufacturing</th>
+                <th>Coating</th>
+                <th>Finished (In Hand)</th>
+                <th>Delivered</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in tool_summary %}
+            <tr>
+                <td>{{ row.tool.item_code or '-' }}</td>
+                <td>{{ row.tool.tool_name }}</td>
+                <td>{{ row.tool.tool_type }}</td>
+                <td>{{ row.not_started or '-' }}</td>
+                <td>
+                    {% if row.stage_qty.blank_making %}<div class="stage-pill stage-pill-vendor">At Vendor: {{ row.stage_qty.blank_making }}</div>{% endif %}
+                    {% if row.ready_qty.blank_making %}<div class="stage-pill stage-pill-ready">Ready: {{ row.ready_qty.blank_making }}</div>{% endif %}
+                    {% if not row.stage_qty.blank_making and not row.ready_qty.blank_making %}-{% endif %}
+                </td>
+                <td>
+                    {% if row.stage_qty.tool_manufacturing %}<div class="stage-pill stage-pill-vendor">At Vendor: {{ row.stage_qty.tool_manufacturing }}</div>{% endif %}
+                    {% if row.ready_qty.tool_manufacturing %}<div class="stage-pill stage-pill-ready">Ready: {{ row.ready_qty.tool_manufacturing }}</div>{% endif %}
+                    {% if not row.stage_qty.tool_manufacturing and not row.ready_qty.tool_manufacturing %}-{% endif %}
+                </td>
+                <td>
+                    {% if row.stage_qty.coating %}<div class="stage-pill stage-pill-vendor">At Vendor: {{ row.stage_qty.coating }}</div>{% endif %}
+                    {% if row.ready_qty.coating %}<div class="stage-pill stage-pill-ready">Ready: {{ row.ready_qty.coating }}</div>{% endif %}
+                    {% if not row.stage_qty.coating and not row.ready_qty.coating %}-{% endif %}
+                </td>
+                <td><span class="badge badge-success">{{ row.finished_in_hand }}</span></td>
+                <td>{{ row.delivered or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" style="text-align: center; color: #999;">No tool activity found</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <a href="/manufacturing/stock" style="display: inline-block; margin-top: 12px;">Go to Finished Tools master →</a>
+</div>
+
+<script>
+    function switchStockTab(tab) {
+        document.getElementById('tab-raw').style.display = tab === 'raw' ? 'block' : 'none';
+        document.getElementById('tab-tools').style.display = tab === 'tools' ? 'block' : 'none';
+        document.getElementById('tab-btn-raw').classList.toggle('active', tab === 'raw');
+        document.getElementById('tab-btn-tools').classList.toggle('active', tab === 'tools');
+    }
+
+    function toggleAccordion(idx) {
+        var body = document.getElementById('accordion-body-' + idx);
+        var chevron = document.getElementById('chevron-' + idx);
+        var isOpen = body.style.display === 'block';
+        body.style.display = isOpen ? 'none' : 'block';
+        chevron.textContent = isOpen ? '▾' : '▴';
+    }
+</script>
+
+{% endblock %}

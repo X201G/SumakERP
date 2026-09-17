@@ -1,0 +1,51 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Invoice - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Invoice: {{ invoice.invoice_no }}{% endblock %}
+
+{% block content %}
+
+{% if not untouched %}
+<div style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00;">
+    Only credit days/due date and remarks can be changed here. Quantity, rate and tax are locked since a payment has already been recorded against this invoice.
+</div>
+{% else %}
+<div style="background: #eef6ff; border: 1px solid #b8d8f5; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #14213d;">
+    No payment recorded yet, so quantity, rate and tax can still be changed.
+</div>
+{% endif %}
+
+<form method="POST" action="/manufacturing/resharpen/invoices/{{ invoice.id }}/edit">
+
+    {% if untouched %}
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity</label>
+        <input type="number" step="0.01" name="quantity" value="{{ item.quantity }}" required min="0.01">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Rate</label>
+        <input type="number" step="0.01" name="rate" value="{{ item.rate }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tax Rate (%)</label>
+        <input type="number" step="0.01" name="tax_rate" value="{{ item.tax_rate }}">
+    </div>
+    {% endif %}
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Credit Days</label>
+        <input type="number" name="cr_days" value="{{ invoice.cr_days or 0 }}">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ invoice.remarks or '' }}">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Challans - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Challans{% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_orders') %}<a href="/manufacturing/orders" class="tab-btn {% if request.path.startswith('/manufacturing/orders') %}active{% endif %}">📥 Customer Orders</a>{% endif %}
+    {% if has_perm('mfg_batches') %}<a href="/manufacturing/batches" class="tab-btn {% if request.path.startswith('/manufacturing/batches') %}active{% endif %}">📦 Batches</a>{% endif %}
+    {% if has_perm('mfg_challans') %}<a href="/manufacturing/challans" class="tab-btn {% if request.path.startswith('/manufacturing/challans') %}active{% endif %}">📄 Challans</a>{% endif %}
+    {% if has_perm('mfg_invoices') %}<a href="/manufacturing/invoices" class="tab-btn {% if request.path.startswith('/manufacturing/invoices') %}active{% endif %}">🧾 Invoices</a>{% endif %}
+    {% if has_perm('mfg_outstanding') %}<a href="/manufacturing/sales-daybook" class="tab-btn {% if request.path.startswith('/manufacturing/sales-daybook') %}active{% endif %}">📅 Sales Day Book</a>{% endif %}
+</div>
+
+{% if has_perm('mfg_challans', 'create') %}
+<a href="/manufacturing/challans/pick-batch-delivery" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ New Delivery Challan</a>
+{% endif %}
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+    <input type="hidden" name="page" value="1">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by challan no or party..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+    <select name="challan_type" onchange="document.getElementById('searchForm').submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+        <option value="" {% if not challan_type %}selected{% endif %}>All Types</option>
+        <option value="vendor_jobwork" {% if challan_type == 'vendor_jobwork' %}selected{% endif %}>Vendor Job-Work</option>
+        <option value="customer_delivery" {% if challan_type == 'customer_delivery' %}selected{% endif %}>Customer Delivery</option>
+    </select>
+    <input type="date" name="from_date" value="{{ from_date }}" onchange="document.getElementById('searchForm').submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+    <input type="date" name="to_date" value="{{ to_date }}" onchange="document.getElementById('searchForm').submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+    {% if challan_type or q or from_date or to_date %}
+    <a href="/manufacturing/challans">Clear Filters</a>
+    {% endif %}
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Challan No</th>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Party</th>
+            <th>Remarks</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in challans %}
+        <tr>
+            <td><a href="/manufacturing/challans/{{ c.id }}">{{ c.challan_no }}</a></td>
+            <td>{{ c.challan_date }}</td>
+            <td>{{ 'Vendor Job-Work' if c.challan_type == 'vendor_jobwork' else 'Customer Delivery' }}</td>
+            <td>{{ c.party_name or '' }}</td>
+            <td>{{ c.remarks or '' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align: center; color: #999;">No challans found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/challans?page={{ page - 1 }}&q={{ q | urlencode }}&challan_type={{ challan_type }}&from_date={{ from_date }}&to_date={{ to_date }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/challans?page={{ page + 1 }}&q={{ q | urlencode }}&challan_type={{ challan_type }}&from_date={{ from_date }}&to_date={{ to_date }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Order - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Order: {{ order.order_no }}{% endblock %}
+
+{% block content %}
+
+{% if not untouched %}
+<div style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00;">
+    Only the PO number and remarks can be changed here. An invoice already references one of this order's items, so customer and items are locked.
+</div>
+{% endif %}
+
+<form method="POST" action="/manufacturing/orders/{{ order.id }}/edit">
+
+    {% if untouched %}
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Customer</label>
+        <select name="customer_id" required style="min-width: 240px;">
+            {% for c in customers %}
+            <option value="{{ c.id }}" {% if order.customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Customer PO No (optional)</label>
+        <input type="text" name="po_no" value="{{ order.po_no or '' }}" style="min-width: 200px;">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ order.remarks or '' }}">
+    </div>
+
+    {% if untouched %}
+    <div style="width: 100%;">
+        <h3 style="margin: 16px 0 12px; color: #14213d;">Order Items</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tool</th>
+                    <th>Quantity</th>
+                    <th>Rate (₹, optional)</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="orderItemsBody">
+                {% for item in items %}
+                <tr>
+                    <td>
+                        <select name="tool_id[]" style="min-width: 260px;">
+                            {% for t in tools %}
+                            <option value="{{ t.id }}" {% if item.tool_id == t.id %}selected{% endif %}>{{ t.item_code }} — {{ t.tool_name }} ({{ t.tool_type }})</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td><input type="number" name="quantity[]" min="1" value="{{ item.quantity }}" style="width: 100px;"></td>
+                    <td><input type="number" step="0.01" name="rate[]" value="{{ item.rate or '' }}" style="width: 120px;"></td>
+                    <td><button type="button" onclick="removeOrderRow(this)" style="background: #c1121f;">✕</button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="button" onclick="addOrderRow()" style="background: #14213d; margin-top: 12px;">+ Add Row</button>
+    </div>
+
+    <script>
+        const editOrderTools = [
+            {% for t in tools %}
+            {id: {{ t.id }}, code: {{ (t.item_code or '')|tojson }}, name: {{ t.tool_name|tojson }}, type: {{ t.tool_type|tojson }}},
+            {% endfor %}
+        ];
+
+        function addOrderRow() {
+            const tbody = document.getElementById('orderItemsBody');
+            const row = document.createElement('tr');
+            let options = editOrderTools.map(t => `<option value="${t.id}">${t.code} — ${t.name} (${t.type})</option>`).join('');
+            row.innerHTML = `
+                <td><select name="tool_id[]" style="min-width: 260px;">${options}</select></td>
+                <td><input type="number" name="quantity[]" min="1" style="width: 100px;"></td>
+                <td><input type="number" step="0.01" name="rate[]" style="width: 120px;"></td>
+                <td><button type="button" onclick="removeOrderRow(this)" style="background: #c1121f;">✕</button></td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function removeOrderRow(btn) {
+            const tbody = document.getElementById('orderItemsBody');
+            if (tbody.rows.length > 1) {
+                btn.closest('tr').remove();
+            }
+        }
+    </script>
+    {% endif %}
+
+    <div style="width: 100%; margin-top: 16px;">
+        <button type="submit">Save</button>
+    </div>
+</form>
+
+{% endblock %}

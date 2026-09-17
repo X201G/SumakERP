@@ -1,0 +1,196 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}New Job Work Batch - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}New Job Work Batch{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/manufacturing/batches/add">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Date</label>
+        <input type="date" name="batch_date" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tool</label>
+        <input type="text" id="tool_display" placeholder="Click to select a tool..." autocomplete="off" readonly onclick="openToolPicker()" style="min-width: 320px; cursor: pointer; background: white;">
+        <input type="hidden" name="tool_id" id="tool_id" required>
+    </div>
+
+    <script>
+        const tools = [
+            {% for t in tools %}
+            {id: {{ t.id }}, code: {{ (t.item_code or '')|tojson }}, name: {{ t.tool_name|tojson }}, type: {{ t.tool_type|tojson }}, customerId: {{ t.customer_id|tojson }}, overallLength: {{ t.overall_length_mm if t.overall_length_mm is not none else 'null' }}},
+            {% endfor %}
+        ];
+        const cuttingAllowance = {{ cutting_allowance }};
+
+        const toolIdInput = document.getElementById('tool_id');
+        const toolDisplay = document.getElementById('tool_display');
+
+        function openToolPicker() {
+            openPickerDrawer(
+                tools,
+                [{label: 'Item Code', value: t => '<strong>' + t.code + '</strong>'}, {label: 'Tool Name', value: t => t.name}, {label: 'Type', value: t => t.type}],
+                ['code', 'name', 'type'],
+                pickTool,
+                'Search tools by item code, name or type...'
+            );
+        }
+
+        function pickTool(t) {
+            toolIdInput.value = t.id;
+            toolDisplay.value = t.code + ' — ' + t.name + ' (' + t.type + ')';
+            if (t.customerId) {
+                const customerSelect = document.getElementById('customer_id_select');
+                if (customerSelect) customerSelect.value = t.customerId;
+            }
+            if (typeof suggestBestRod === 'function') suggestBestRod();
+        }
+    </script>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity</label>
+        <input type="number" name="quantity" id="quantity_input" value="1" required oninput="if (typeof suggestBestRod === 'function') suggestBestRod();">
+    </div>
+
+    {% if rods %}
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Grade</label>
+        <select name="grade" id="grade_select" required style="min-width: 200px;" onchange="if (typeof suggestBestRod === 'function') suggestBestRod();">
+            <option value="">-- Select Grade --</option>
+            {% for g in grades %}
+            <option value="{{ g }}">{{ g }}</option>
+            {% endfor %}
+        </select>
+        <small style="color: #6b6b6b;">Narrows the rod suggestion (and manual search) to this grade only.</small>
+    </div>
+    {% endif %}
+
+    <div style="display: flex; flex-direction: column; gap: 4px; position: relative;">
+        <label>Source Rod</label>
+        {% if rods %}
+        <input type="text" id="rod_display" placeholder="Click to select a rod..." autocomplete="off" readonly onclick="openRodPicker()" style="min-width: 320px; cursor: pointer; background: white;">
+        <input type="hidden" name="rod_id" id="rod_id" required>
+        <div id="rod_selected" style="font-size: 13px; color: #2563eb; font-weight: 600;"></div>
+        <small style="color: #6b6b6b;">Each piece uses the tool's overall length + {{ cutting_allowance }}mm for cutting.</small>
+
+        <div id="override_reason_wrap" style="display: none; margin-top: 8px;">
+            <label>Reason for using a different rod</label>
+            <input type="text" name="override_reason" id="override_reason" placeholder="e.g. saving this rod for a bigger job">
+        </div>
+
+        <script>
+            const rods = [
+                {% for r in rods %}
+                {id: {{ r.id }}, grade: {{ (r.grade or '')|tojson }}, diameter: {{ r.diameter_mm if r.diameter_mm is not none else 'null' }}, remaining: {{ r.remaining_length_mm }}, label: {{ (r.rod_date ~ ' - ' ~ (r.grade or 'Rod') ~ ' (' ~ r.diameter_mm ~ 'mm) - ' ~ r.remaining_length_mm ~ 'mm remaining')|tojson }}},
+                {% endfor %}
+            ];
+
+            const rodDisplay = document.getElementById('rod_display');
+            const rodIdInput = document.getElementById('rod_id');
+            const rodSelectedDisplay = document.getElementById('rod_selected');
+            const gradeSelect = document.getElementById('grade_select');
+            const overrideReasonWrap = document.getElementById('override_reason_wrap');
+            const overrideReasonInput = document.getElementById('override_reason');
+            let suggestedRodId = null;
+
+            function gradeFilteredRods() {
+                const grade = gradeSelect ? gradeSelect.value : '';
+                return grade ? rods.filter(r => r.grade === grade) : rods;
+            }
+
+            function setOverrideReasonVisible(visible) {
+                overrideReasonWrap.style.display = visible ? 'block' : 'none';
+                overrideReasonInput.required = visible;
+                if (!visible) overrideReasonInput.value = '';
+            }
+
+            function checkOverride(pickedId) {
+                if (suggestedRodId && String(pickedId) !== String(suggestedRodId)) {
+                    setOverrideReasonVisible(true);
+                } else {
+                    setOverrideReasonVisible(false);
+                }
+            }
+
+            function openRodPicker() {
+                openPickerDrawer(
+                    gradeFilteredRods(),
+                    [{label: 'Grade', value: r => r.grade || 'Rod'}, {label: 'Diameter', value: r => r.diameter + 'mm'}, {label: 'Remaining', value: r => r.remaining + 'mm'}],
+                    ['grade'],
+                    pickRod,
+                    'Search rods by grade...'
+                );
+            }
+
+            function pickRod(r) {
+                rodIdInput.value = r.id;
+                rodDisplay.value = r.label;
+                checkOverride(r.id);
+            }
+
+            function suggestBestRod() {
+                const selectedToolId = document.getElementById('tool_id').value;
+                const tool = tools.find(t => String(t.id) === String(selectedToolId));
+                const qty = parseInt(document.getElementById('quantity_input').value, 10);
+
+                if (!tool || !tool.overallLength || !qty || qty < 1) {
+                    return;
+                }
+
+                const lengthNeeded = (tool.overallLength + cuttingAllowance) * qty;
+                const candidates = gradeFilteredRods().filter(r => r.remaining >= lengthNeeded);
+
+                if (candidates.length === 0) {
+                    suggestedRodId = null;
+                    rodIdInput.value = '';
+                    rodDisplay.value = '';
+                    rodSelectedDisplay.style.color = '#c1121f';
+                    rodSelectedDisplay.textContent = `No rod has enough length (needs ${lengthNeeded.toFixed(1)}mm)${gradeSelect.value ? ' in grade ' + gradeSelect.value : ''} - try a different grade, reduce quantity, or add rod stock.`;
+                    setOverrideReasonVisible(false);
+                    return;
+                }
+
+                let best = candidates[0];
+                for (const r of candidates) {
+                    if (r.remaining < best.remaining) best = r;
+                }
+                const waste = (best.remaining - lengthNeeded).toFixed(1);
+                suggestedRodId = best.id;
+                rodIdInput.value = best.id;
+                rodDisplay.value = best.label;
+                rodSelectedDisplay.style.color = '#2d6a4f';
+                rodSelectedDisplay.textContent = `Suggested: ${best.label} - least waste (${waste}mm left over). Needs ${lengthNeeded.toFixed(1)}mm.`;
+                setOverrideReasonVisible(false);
+            }
+        </script>
+        {% else %}
+        <div style="color: #c1121f; font-weight: 600; padding: 10px 0;">⚠ No rods with length remaining. Add a rod in Raw Material first.</div>
+        <input type="hidden" name="rod_id" value="">
+        {% endif %}
+    </div>
+
+
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Customer (optional)</label>
+        <select name="customer_id" id="customer_id_select" style="min-width: 240px;">
+            <option value="">-- Not Assigned Yet --</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+        </select>
+        <small style="color: #6b6b6b;">Auto-fills from the tool's assigned customer if it has one - change it here if needed.</small>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks">
+    </div>
+
+    <button type="submit">Create Batch</button>
+</form>
+
+{% endblock %}

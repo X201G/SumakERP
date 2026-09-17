@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUMAK - Choose System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body {
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chooser-box {
+            background: white;
+            width: 420px;
+            padding: 36px 32px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .logo-name {
+            font-size: 26px;
+            font-weight: 700;
+            color: #e85d04;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        .logo-sub {
+            font-size: 12px;
+            color: #6b6b6b;
+            letter-spacing: 1px;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .system-btn {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            text-align: center;
+            margin-top: 16px;
+        }
+        .distribution-btn {
+            background: #e85d04;
+            color: white;
+        }
+        .distribution-btn:hover { background: #cf4f03; }
+        .manufacturing-btn {
+            background: #1a1a2e;
+            color: white;
+            border: 2px solid #1a1a2e;
+        }
+        .manufacturing-btn:hover { background: #12121f; }
+    </style>
+</head>
+<body>
+    <div class="chooser-box">
+        <div class="logo-name">SUMAK</div>
+        <div class="logo-sub">CHOOSE YOUR SYSTEM</div>
+
+        <a href="/login?system=distribution" class="system-btn distribution-btn">📦 Distribution</a>
+        <a href="/login?system=manufacturing" class="system-btn manufacturing-btn">🏭 Manufacturing</a>
+    </div>
+</body>
+</html>

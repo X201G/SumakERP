@@ -1,0 +1,84 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Tool Master - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Tool Master{% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_rods') %}<a href="/manufacturing/rods" class="tab-btn {% if request.path.startswith('/manufacturing/rods') %}active{% endif %}">🔩 Rod Master</a>{% endif %}
+    {% if has_perm('mfg_tools') %}<a href="/manufacturing/tools" class="tab-btn {% if request.path.startswith('/manufacturing/tools') %}active{% endif %}">🛠️ Tool Master</a>{% endif %}
+    {% if has_perm('mfg_brands') %}<a href="/manufacturing/brands" class="tab-btn {% if request.path.startswith('/manufacturing/brands') %}active{% endif %}">🏷️ Brand Master</a>{% endif %}
+    {% if has_perm('mfg_items') %}<a href="/manufacturing/items" class="tab-btn {% if request.path.startswith('/manufacturing/items') %}active{% endif %}">🧰 Item Master</a>{% endif %}
+</div>
+
+{% if has_perm('mfg_tools', 'create') %}
+<a href="/manufacturing/tools/add" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ Add Tool</a>
+{% endif %}
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px;">
+    <input type="hidden" name="page" value="1">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by item code, name, type, brand or customer..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Item Code</th>
+            <th>Tool Name</th>
+            <th>Type</th>
+            <th>Brand</th>
+            <th>Diameter (mm)</th>
+            <th>Overall Length (mm)</th>
+            <th>Flute Length (mm)</th>
+            <th>Shank Diameter (mm)</th>
+            <th>Customer</th>
+            <th>Remarks</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for tool in tools %}
+        <tr>
+            <td><strong>{{ tool.item_code or '-' }}</strong></td>
+            <td>{{ tool.tool_name }}</td>
+            <td>{{ tool.tool_type }}</td>
+            <td>{{ tool.brand_name or '-' }}</td>
+            <td>{{ tool.diameter_mm }}</td>
+            <td>{{ tool.overall_length_mm }}</td>
+            <td>{{ tool.flute_length_mm }}</td>
+            <td>{{ tool.shank_diameter_mm }}</td>
+            <td>{{ tool.customer_name or '-' }}</td>
+            <td>{{ tool.remarks }}</td>
+            <td>
+                {% if has_perm('mfg_tools', 'edit') %}<a href="/manufacturing/tools/edit/{{ tool.id }}">Edit</a>{% endif %}
+                {% if has_perm('mfg_tools', 'edit') and has_perm('mfg_tools', 'delete') %} | {% endif %}
+                {% if has_perm('mfg_tools', 'delete') %}<a href="/manufacturing/tools/delete/{{ tool.id }}" onclick="return confirm('Delete this tool?')">Delete</a>{% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="11" style="text-align: center; color: #999;">No tools found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/tools?page={{ page - 1 }}&q={{ q | urlencode }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/tools?page={{ page + 1 }}&q={{ q | urlencode }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

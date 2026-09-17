@@ -1,0 +1,37 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Challan - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Challan: {{ challan.challan_no }}{% endblock %}
+
+{% block content %}
+
+<div style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00;">
+    Only date, transporter and remarks can be changed here. The batch/stage and quantity are locked since stock and delivery tracking depend on them.
+</div>
+
+<form method="POST" action="/manufacturing/challans/{{ challan.id }}/edit">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Date</label>
+        <input type="date" name="challan_date" value="{{ challan.challan_date }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Transporter</label>
+        <select name="transporter_id" style="min-width: 240px;">
+            <option value="">-- None --</option>
+            {% for t in transporters %}
+            <option value="{{ t.id }}" {% if challan.transporter_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ challan.remarks or '' }}">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

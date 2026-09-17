@@ -1,0 +1,62 @@
+
+{% extends "base.html" %}
+
+{% block title %}Proforma Invoice Details - SUMAK ERP{% endblock %}
+
+{% block page_title %}Proforma Invoice Details{% endblock %}
+
+{% block content %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px;">
+    <h3 style="margin-bottom: 16px;">Proforma: {{ proforma.proforma_no }}</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+        <div><strong>Customer:</strong> {{ proforma.customer_name }}</div>
+        <div><strong>Proforma Date:</strong> {{ proforma.proforma_date }}</div>
+        <div><strong>Status:</strong> {{ proforma.status }}</div>
+        <div><strong>Transporter:</strong> {{ proforma.transporter_name }}</div>
+        <div><strong>PO No:</strong> {{ proforma.po_no }}</div>
+        <div><strong>PO Date:</strong> {{ proforma.po_date }}</div>
+        <div><strong>Kind Attn:</strong> {{ proforma.kind_attn }}</div>
+        <div><strong>Remarks:</strong> {{ proforma.remarks }}</div>
+    </div>
+</div>
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px;">
+    <h3 style="margin-bottom: 16px;">Items</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>HSN</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Rate</th>
+                <th>Discount%</th>
+                <th>Tax%</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.product_name }}</td>
+                <td>{{ item.hsn_code }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit_name }}</td>
+                <td>{{ item.rate }}</td>
+                <td>{{ item.discount }}</td>
+                <td>{{ item.tax_rate }}</td>
+                <td>{{ item.amount }}</td>    
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; text-align: right;">
+    <h2>Total: ₹{{ proforma.total_amount }}</h2>
+</div>
+
+<a href="/proforma-invoices" style="display: inline-block; margin-top: 16px; background: #1a1a2e; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">← Back to Proforma Invoices</a>
+
+{% endblock %}

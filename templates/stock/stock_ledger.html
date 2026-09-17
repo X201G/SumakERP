@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Stock Ledger - SUMAK ERP{% endblock %}
+
+{% block page_title %}Stock Ledger{% endblock %}
+
+{% block content %}
+
+<div style="background:white; padding:24px; border-radius:12px; border:1px solid #e0ddd8; margin-bottom:24px;">
+    <h2 style="margin-bottom:8px;">{{ product.product_name }}</h2>
+    <p style="color:#6b6b6b;">Complete stock movement history</p>
+</div>
+
+<form method="GET" style="display: flex; gap: 12px; margin-bottom: 16px; align-items: end;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 13px; color: #6b6b6b;">Filter By Module</label>
+        <select name="module" onchange="this.form.submit()">
+            <option value="">All Modules</option>
+            <option value="opening" {% if module_filter == "opening" %}selected{% endif %}>Opening Stock</option>
+            <option value="grn" {% if module_filter == "grn" %}selected{% endif %}>Purchase GRN</option>
+            <option value="sales_invoice" {% if module_filter == "sales_invoice" %}selected{% endif %}>Sales Invoice</option>
+            <option value="challan" {% if module_filter == "challan" %}selected{% endif %}>Sales Challan</option>
+            <option value="sales_return" {% if module_filter == "sales_return" %}selected{% endif %}>Sales return</option>
+            <option value="purchase_return" {% if module_filter == "purchase_return" %}selected{% endif %}>Purchase Return</option>
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 13px; color: #6b6b6b;">Sort by</label>
+        <select name="sort" onchange="this.form.submit()">
+            <option value="date_asc" {% if sort_by == "date_asc" %}selected{% endif %}>Date: Oldest first</option>
+            <option value="date_desc" {% if sort_by == "date_desc" %}selected{% endif %}>Date: Newest first</option>
+            <option value="amount_desc" {% if sort_by == "amount_desc" %}selected{% endif %}>Amount: High to Low</option>
+            <option value="amount_asc" {% if sort_by == "amount_asc" %}selected{% endif %}>Amount: Low to High</option>
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 13px; color: #6b6b6b;">From Date</label>
+        <input type="date" name="from_date" value="{{ from_date }}" onchange="this.form.submit()">
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:13px; color:#6b6b6b;">To Date</label>
+        <input type="date" name="to_date" value="{{ to_date }}" onchange="this.form.submit()">
+    </div>
+</form>
+
+{% if module_filter or from_date or to_date or sort_by != "date_asc" %}
+<a href="/stock/ledger/{{ product.id }}" style="display: inline-block; margin-bottom: 16px; color: #e85d04;">✕ Clear All Filters</a>
+{% endif %}
+
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Module</th>
+            <th>Inward</th>
+            <th>Outward</th>
+            <th>Cum. Qty</th>
+            <th>Rate</th>
+            <th>Amount</th>
+            <th>Document No</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set running = namespace(balance=0) %}
+        {% for m in movements %}
+            {% if m.movement_type == "IN" %}
+                {% set running.balance = running.balance + m.quantity %}
+            {% else %}
+                {% set running.balance = running.balance - m.quantity %}
+            {% endif %}
+        <tr>
+            <td>{{ m.movement_date }}</td>
+            <td>{{ module_names.get(m.source_type, m.source_type) }}</td>
+            <td style="color:#2d6a4f; font-weight:600;">
+                {% if m.movement_type == "IN" %}{{ m.quantity }}{% else %}-{% endif %}
+            </td>
+            <td style="color:#c1121f; font-weight:600;">
+                {% if m.movement_type == "OUT" %}{{ m.quantity }}{% else %}-{% endif %}
+            </td>
+            <td style="font-weight:600;">{{ running.balance }}</td>
+            <td>{{ m.rate }}</td>
+            <td>{{ m.amount }}</td>
+            <td>{{ m.source_no }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="/stock" style="display:inline-block; margin-top:16px; background:#1a1a2e; color:white; padding:10px 20px; border-radius:8px; text-decoration:none;">← Back to Stock</a>
+
+{% endblock %}

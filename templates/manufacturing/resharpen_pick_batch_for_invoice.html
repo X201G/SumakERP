@@ -1,0 +1,65 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}New Invoice - Pick Batch - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}New Invoice - Pick a Batch{% endblock %}
+
+{% block content %}
+
+<a href="/manufacturing/resharpen/invoices" style="display: inline-block; margin-bottom: 20px;">← Back to Invoices</a>
+
+<p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">Only batches with something delivered but not yet invoiced are shown here.</p>
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px;">
+    <input type="hidden" name="page" value="1">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by batch no, tool or customer..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Batch No</th>
+            <th>Tool</th>
+            <th>Customer</th>
+            <th>Delivered</th>
+            <th>Invoiced</th>
+            <th>Available to Invoice</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.batch_no }}</td>
+            <td>{{ row.tool_name }} ({{ row.tool_type }})</td>
+            <td>{{ row.customer_name or '' }}</td>
+            <td>{{ row.delivered_qty }}</td>
+            <td>{{ row.invoiced_qty }}</td>
+            <td style="font-weight: 600; color: #2d6a4f;">{{ row.delivered_qty - row.invoiced_qty }}</td>
+            <td><a href="/manufacturing/resharpen/batches/{{ row.id }}/invoice/new" style="background: #2563eb; color: white; padding: 6px 14px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 12.5px;">Create Invoice</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align: center; color: #999;">Nothing available to invoice right now</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/resharpen/invoices/pick-batch?page={{ page - 1 }}&q={{ q | urlencode }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/resharpen/invoices/pick-batch?page={{ page + 1 }}&q={{ q | urlencode }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

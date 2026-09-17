@@ -1,0 +1,157 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Tool - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Tool{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/manufacturing/tools/edit/{{ tool.id }}">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Item Code</label>
+        <input type="text" value="{{ tool.item_code or '-' }}" disabled style="background: #ece9e2; cursor: not-allowed;">
+        <small style="color: #6b6b6b;">Permanent once assigned - doesn't change even if you edit type or brand below.</small>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tool Name</label>
+        <input type="text" name="tool_name" value="{{ tool.tool_name }}" placeholder="e.g. 6mm 2-Flute Endmill" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tool Type</label>
+        <select name="tool_type" id="tool_type_select" required>
+            <option value="">-- Select Type --</option>
+            {% for t in tool_types %}
+            <option value="{{ t }}" {% if tool.tool_type == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Brand (optional)</label>
+        <select name="brand_id" id="brand_select" style="min-width: 200px;">
+            <option value="">-- No Brand --</option>
+        </select>
+        <small style="color: #6b6b6b;">Changing this won't alter the item code above. <a href="/manufacturing/brands/add">+ Add a new brand</a></small>
+    </div>
+
+    <script>
+        const allBrands = [
+            {% for b in brands %}
+            {id: {{ b.id }}, type: {{ b.tool_type|tojson }}, name: {{ b.name|tojson }}},
+            {% endfor %}
+        ];
+        const currentBrandId = {{ tool.brand_id or 'null' }};
+
+        const toolTypeSelect = document.getElementById('tool_type_select');
+        const brandSelect = document.getElementById('brand_select');
+
+        function refreshBrandOptions(preserveId) {
+            const type = toolTypeSelect.value;
+            if (!type) {
+                brandSelect.innerHTML = '<option value="">-- Select Tool Type First --</option>';
+                brandSelect.disabled = true;
+                return;
+            }
+            const matches = allBrands.filter(b => b.type === type);
+            brandSelect.innerHTML = '<option value="">-- No Brand --</option>' +
+                matches.map(b => '<option value="' + b.id + '">' + b.name + '</option>').join('');
+            brandSelect.disabled = false;
+            if (preserveId) { brandSelect.value = preserveId; }
+        }
+
+        toolTypeSelect.addEventListener('change', function() { refreshBrandOptions(null); });
+        refreshBrandOptions(currentBrandId);
+    </script>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Diameter (mm)</label>
+        <input type="number" step="0.01" name="diameter_mm" value="{{ tool.diameter_mm or '' }}">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Overall Length (mm)</label>
+        <input type="number" step="0.01" name="overall_length_mm" value="{{ tool.overall_length_mm or '' }}">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Flute Length (mm)</label>
+        <input type="number" step="0.01" name="flute_length_mm" value="{{ tool.flute_length_mm or '' }}">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Shank Diameter (mm)</label>
+        <input type="number" step="0.01" name="shank_diameter_mm" value="{{ tool.shank_diameter_mm or '' }}">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Customer</label>
+        <select name="customer_id" required style="min-width: 220px;">
+            <option value="">-- Select Customer --</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}" {% if tool.customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+        <small style="color: #6b6b6b;">Every tool is dedicated to one customer.</small>
+    </div>
+
+    <div style="width: 100%; background: #faf9f6; border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px;">
+        <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b6558; margin-bottom: 12px;">Purchase Pricing (optional)</div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap: 14px; max-width: 560px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Purchase Price (₹)</label>
+                <input type="number" step="0.01" name="purchase_price" id="purchase_price" value="{{ tool.purchase_price or '' }}" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Discount (%)</label>
+                <input type="number" step="0.01" name="purchase_discount_percent" id="purchase_discount_percent" value="{{ tool.purchase_discount_percent or 0 }}" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Final Price (₹)</label>
+                <input type="text" id="final_purchase_price" readonly tabindex="-1" style="background: #eef6ff; border-color: #b8d8f5; font-weight: 700;">
+            </div>
+        </div>
+        <small style="color: #6b6b6b; display: block; margin-top: 10px;">Only if this tool is ever bought-in from a vendor rather than manufactured in-house.</small>
+    </div>
+
+    <div style="width: 100%; background: #faf9f6; border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px;">
+        <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b6558; margin-bottom: 12px;">Sales Pricing (optional)</div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap: 14px; max-width: 560px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Sales Price (₹)</label>
+                <input type="number" step="0.01" name="sales_price" id="sales_price" value="{{ tool.sales_price or '' }}" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Discount (%)</label>
+                <input type="number" step="0.01" name="sales_discount_percent" id="sales_discount_percent" value="{{ tool.sales_discount_percent or 0 }}" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Final Price (₹)</label>
+                <input type="text" id="final_sales_price" readonly tabindex="-1" style="background: #eef6ff; border-color: #b8d8f5; font-weight: 700;">
+            </div>
+        </div>
+        <small style="color: #6b6b6b; display: block; margin-top: 10px;">Default rate suggested when invoicing this tool to a customer.</small>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ tool.remarks or '' }}">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+<script>
+    function recalcPricing() {
+        var pp = parseFloat(document.getElementById('purchase_price').value) || 0;
+        var pd = parseFloat(document.getElementById('purchase_discount_percent').value) || 0;
+        document.getElementById('final_purchase_price').value = (pp * (1 - pd / 100)).toFixed(2);
+        var sp = parseFloat(document.getElementById('sales_price').value) || 0;
+        var sd = parseFloat(document.getElementById('sales_discount_percent').value) || 0;
+        document.getElementById('final_sales_price').value = (sp * (1 - sd / 100)).toFixed(2);
+    }
+    recalcPricing();
+</script>
+
+{% endblock %}

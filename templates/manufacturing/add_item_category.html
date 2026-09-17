@@ -1,0 +1,18 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Add Item Category - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Add Item Category{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/manufacturing/item-categories/add">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Category Name</label>
+        <input type="text" name="name" placeholder="e.g. Abrasives, Lubricants, Consumables" required autofocus>
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

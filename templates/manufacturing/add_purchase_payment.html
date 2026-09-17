@@ -1,0 +1,176 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Record Payment Made - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Record Payment Made{% endblock %}
+
+{% block content %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+    <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Supplier</label>
+            <select id="supplier-select" style="min-width: 260px;" onchange="loadSupplierInvoices()">
+                <option value="">-- Select Supplier --</option>
+                {% for s in suppliers %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Show</label>
+            <select id="status-filter" onchange="renderInvoiceTable()">
+                <option value="due">Unpaid + Partial</option>
+                <option value="all">All Invoices</option>
+                <option value="unpaid">Unpaid Only</option>
+                <option value="partial">Partial Only</option>
+                <option value="paid">Fully Paid Only</option>
+            </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Search Invoice No</label>
+            <input type="text" id="invoice-search" placeholder="Type to filter..." onkeyup="renderInvoiceTable()">
+        </div>
+    </div>
+</div>
+
+<p id="no-supplier-msg" style="color: #999;">Select a supplier above to see their invoices.</p>
+
+<div id="on-account-box" style="display: none; margin-bottom: 16px;">
+    <button type="button" onclick="selectOnAccount()" style="background: #14213d;">💸 Record On-Account Payment (not tied to a specific invoice)</button>
+</div>
+
+<table id="invoice-table" style="display: none;">
+    <thead>
+        <tr>
+            <th>Invoice No</th>
+            <th>Date</th>
+            <th>Due Date</th>
+            <th>Total</th>
+            <th>Paid</th>
+            <th>Due</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="invoice-table-body"></tbody>
+</table>
+
+<div id="payment-form-box" style="display: none; background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; margin-top: 24px; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+    <h3 style="margin-bottom: 16px; color: #14213d;">Recording payment for: <span id="selected-invoice-label" style="color: #2563eb;"></span></h3>
+    <form method="POST" action="/manufacturing/purchase-payments/add">
+        <input type="hidden" name="invoice_id" id="invoice_id_input">
+        <input type="hidden" name="supplier_id" id="supplier_id_input">
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Payment Date</label>
+            <input type="date" name="payment_date" required>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Amount Paid</label>
+            <input type="number" step="0.01" name="amount" id="amount_input" required>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Payment Mode</label>
+            <select name="payment_mode">
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="upi">UPI</option>
+                <option value="cheque">Cheque</option>
+            </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Reference No (Cheque/UTR/UPI Ref)</label>
+            <input type="text" name="reference_no">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Remarks</label>
+            <input type="text" name="remarks">
+        </div>
+
+        <button type="submit">Save Payment</button>
+    </form>
+</div>
+
+<script>
+    var currentInvoices = [];
+
+    function loadSupplierInvoices() {
+        var supplierId = document.getElementById("supplier-select").value;
+        document.getElementById("payment-form-box").style.display = "none";
+        document.getElementById("supplier_id_input").value = supplierId;
+        if (!supplierId) {
+            document.getElementById("invoice-table").style.display = "none";
+            document.getElementById("on-account-box").style.display = "none";
+            document.getElementById("no-supplier-msg").style.display = "block";
+            return;
+        }
+        document.getElementById("on-account-box").style.display = "block";
+        fetch("/manufacturing/api/supplier-invoices/" + supplierId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                currentInvoices = data.invoices;
+                document.getElementById("no-supplier-msg").style.display = "none";
+                document.getElementById("invoice-table").style.display = "table";
+                renderInvoiceTable();
+            });
+    }
+
+    function renderInvoiceTable() {
+        var statusFilter = document.getElementById("status-filter").value;
+        var search = document.getElementById("invoice-search").value.toLowerCase();
+        var tbody = document.getElementById("invoice-table-body");
+        tbody.innerHTML = "";
+
+        var filtered = currentInvoices.filter(function(inv) {
+            if (statusFilter === "due" && inv.status === "paid") return false;
+            if (statusFilter !== "all" && statusFilter !== "due" && inv.status !== statusFilter) return false;
+            if (search && inv.invoice_no.toLowerCase().indexOf(search) === -1) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999;">No invoices match</td></tr>';
+            return;
+        }
+
+        filtered.forEach(function(inv) {
+            var statusColor = inv.status === "paid" ? "#2d6a4f" : (inv.status === "partial" ? "#92600a" : "#c1121f");
+            var row = document.createElement("tr");
+            row.innerHTML =
+                "<td>" + inv.invoice_no + "</td>" +
+                "<td>" + inv.invoice_date + "</td>" +
+                "<td>" + (inv.due_date || "") + "</td>" +
+                "<td>" + inv.total_amount + "</td>" +
+                "<td>" + inv.paid + "</td>" +
+                "<td style='font-weight:600;'>" + inv.due + "</td>" +
+                "<td style='color:" + statusColor + "; font-weight:600; text-transform:capitalize;'>" + inv.status + "</td>" +
+                "<td><button type='button' onclick='selectInvoice(" + inv.id + ")'>Pay</button></td>";
+            tbody.appendChild(row);
+        });
+    }
+
+    function selectInvoice(invoiceId) {
+        var inv = currentInvoices.find(function(i) { return i.id === invoiceId; });
+        if (!inv) return;
+        document.getElementById("invoice_id_input").value = inv.id;
+        document.getElementById("selected-invoice-label").innerText = inv.invoice_no + " (Due: " + inv.due + ")";
+        document.getElementById("amount_input").value = inv.due;
+        document.getElementById("payment-form-box").style.display = "block";
+        document.getElementById("payment-form-box").scrollIntoView({behavior: "smooth"});
+    }
+
+    function selectOnAccount() {
+        document.getElementById("invoice_id_input").value = "";
+        document.getElementById("selected-invoice-label").innerText = "On Account (not linked to a specific invoice)";
+        document.getElementById("amount_input").value = "";
+        document.getElementById("payment-form-box").style.display = "block";
+        document.getElementById("payment-form-box").scrollIntoView({behavior: "smooth"});
+    }
+</script>
+
+{% endblock %}

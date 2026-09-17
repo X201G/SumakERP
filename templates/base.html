@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta name="google" content="notranslate">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}SUMAK ERP{% endblock %}</title>
+
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: 'segoe UI', sans-serif;
+            }
+
+            body {
+                display: flex;
+                background: #f5f3ef;
+                min-height: 100vh;
+            }
+
+            .sidebar {
+                width: 240px;
+                background: #1a1a2e;
+                height: 100vh;
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 200;
+                overflow-y: auto;
+            }
+
+            .logo-area {
+                padding: 24px 20px;
+                border-bottom: 1px solid rgba(255,255,255,0.08);
+            }
+
+            .logo-name {
+                font-size: 22px;
+                font-weight: 700;
+                color: #e85d04;
+                letter-spacing: 2px;
+            }
+
+            .logo-sub {
+                font-size: 11px;
+                color: rgba(255,255,255,0.4);
+                letter-spacing: 1px;
+                margin-top: 2px;
+            }
+
+            .nav-section {
+                padding: 16px 0;
+            }
+
+            .nav-label {
+                font-size: 10px;
+                font-weight: 600;
+                color: rgba(255,255,255,0.3);
+                letter-spacing: 1.5px;
+                padding: 8px 20px;
+            }
+
+            .nav-item {
+                display: block;
+                padding: 10px 20px;
+                color: rgba(255,255,255,0.6);
+                font-size: 13.5px;
+                text-decoration: none;
+                border-left: 3px solid transparent;
+            }
+
+            .nav-item:hover {
+                background: rgba(255,255,255,0.05);
+                color: white;
+                border-left-color:#e85d04 ;
+            }
+
+            .main {
+                flex: 1;
+                margin-left: 240px;
+                min-height: 100vh;
+                box-sizing: border-box;
+            }
+
+
+            .topbar {
+                background: #ffffff;
+                border-bottom: 1px solid #e0ddd8;
+                padding: 0 32px;
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: sticky;
+                top: 0;
+                z-index: 50;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .page-title {
+                font-size: 20px;
+                font-weight: 700;
+                color: #1a1a1a;
+            }
+
+            .user-badge {
+                background: #1a1a2e;
+                color: white;
+                padding: 6px 14px;
+                border-radius: 20px;
+                font-size: 12px;
+            }
+
+            .content {
+                padding: 16px;
+                box-sizing: border-box;
+            }
+
+            .flash-success {
+            background: #d8f3dc;
+            color: #2d6a4f;
+            border: 1px solid #b7e4c7;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            }
+
+            .flash-danger {
+            background: #ffe0e0;
+            color: #c1121f;
+            border: 1px solid #ffb3b3;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                margin-top: 24px;
+            }
+
+            thead th, th {
+                background: #faf9f7;
+                padding: 12px 24px;
+                text-align: left;
+                font-size: 12px;
+                font-weight: 600;
+                color: #6b6b6b;
+                text-transform: uppercase;
+                border-bottom: 1px solid #e0ddd8;
+            }
+
+            tbody tr, tr {
+                border-bottom: 1px solid #e0ddd8;
+            }
+
+            tbody tr:hover, tr:hover {
+                background: #faf9f7;
+            }
+
+            td {
+                padding: 14px 24px;
+                font-size: 14px;
+                color: #1a1a1a;
+            }
+
+            form {
+                background: white;
+                padding: 24px;
+                border-radius: 12px;
+                border: 1px solid #e0ddd8;
+                margin-bottom: 24px;
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                align-items: flex-end;
+            }
+
+            input, select {
+                background: #faf9f7;
+                border: 1.5px solid #e0ddd8;
+                border-radius: 8px;
+                padding: 10px 14px;
+                font-size: 14px;
+                outline: none;
+            }
+
+            input:focus, select:focus {
+                border-color: #e85d04;
+            }
+
+            button {
+                background: #e85d04;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 24px;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            button:hover {
+                background: #cf4f03;
+            }
+
+            a {
+                color: #e85d04;
+                text-decoration: none;
+                font-weight: 600;
+            }
+
+            .nav-toggle {
+                cursor: pointer;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="sidebar">
+            <div class="logo-area">
+                <div class="logo-name">SUMAK</div>
+                <div class="logo-sub">ERP SYSTEM</div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label">MAIN</div>
+                <a href="/" class="nav-item">🏠 Dashboard</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label nav-toggle" onclick="toggleMenu('masters-menu')">MASTERS <span id="masters-arrow" style="color: #b7e4c7;">▼</span></div>
+                <div id="masters-menu">
+                <a href="/units" class="nav-item">📦 Unit Master</a>
+                <a href="/categories" class="nav-item">🗂️ Category Master</a>
+                <a href="/subcategories" class="nav-item">📁 SubCategory Master</a>
+                <a href="/hsn" class="nav-item">🏷️ HSN Master</a>
+                <a href="/customers" class="nav-item">👥 Customer Master</a>
+                <a href="/suppliers" class="nav-item">🚚 Supplier Master</a>    
+                <a href="/products" class="nav-item">🔧 Product Master</a>
+                <a href="/transporters" class="nav-item">🚛 Transporter Master</a>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label nav-toggle" onclick="toggleMenu('transactions-menu')">TRANSACTIONS <span id="transactions-arrow" style="color: #b7e4c7;">▼</span></div>
+                <div id="transactions-menu">
+                <a href="/purchase-orders" class="nav-item">📋 Purchase Order</a>  
+                <a href="/purchase-invoices" class="nav-item">🛒 Purchase Invoice</a>
+                <a href="/purchase-grn" class="nav-item">🚚 Purchase GRN</a>
+                <a href="/purchase-returns" class="nav-item">↩️ Purchase Return</a>
+                <a href="/sales-invoices" class="nav-item">🧾 Sales Invoice</a>
+                <a href="/sales-quotations" class="nav-item">📝 Sales Quotation</a>
+                <a href="/sales-orders" class="nav-item">📑 Sales Order</a>
+                <a href="/proforma-invoices" class="nav-item">📄 Proforma Invoice</a>
+                <a href="/sales-challans" class="nav-item">📦 Sales Challan</a>
+                <a href="/sales-returns" class="nav-item">↩️ Sales Return</a>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label nav-toggle" onclick="toggleMenu('accounting-menu')">ACCOUNTING <span id="accounting-arrow" style="color: #b7e4c7;">▼</span></div>
+                <div id="accounting-menu">
+                <a href="/sales-payments" class="nav-item">💰 Payments Received</a>
+                <a href="/purchase-payments" class="nav-item">💸 Payments Made</a>
+                <a href="/outstanding" class="nav-item">📊 Outstanding Report</a>
+                <a href="/daybook" class="nav-item">📒 Day Book</a>
+                </div>
+
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-label">INVENTORY</div>
+                <a href="/stock" class="nav-item">📦 Stock</a>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="topbar">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button onclick="toggleSidebar()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #1a1a2e; padding: 0;">☰</button>
+                <div class="page-title">{% block page_title %}SUMAK ERP{% endblock %}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="user-badge">👤 {{ session.full_name }}</div>
+                    <a href="/logout" style="background: #1a1a2e; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; text-decoration: none;">Logout</a>
+                </div>
+
+            </div>
+
+            <div class="content">
+                <div id="flash-messages">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                {% if category == "success" %}
+                                    <p class="flash-success">{{ message }}</p>
+                                {% else %}
+                                    <p class="flash-danger">{{ message }}</p>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+        </div>
+
+        <script>
+            setTimeout(function() {
+                var messages = document.getElementById("flash-messages");
+                if (messages) {
+                    messages.style.display = "none";
+                }
+            }, 3000);
+        </script>
+
+        <script>
+            function toggleMenu(id) {
+                var menu = document.getElementById(id);
+                var arrow = document.getElementById(id.replace('-menu', '-arrow'));
+                if (menu.style.display === "none") {
+                    menu.style.display = "block";
+                    arrow.innerHTML = "▼";
+                } else {
+                    menu.style.display = "none";
+                    arrow.innerHTML = "►";
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                document.querySelector(".sidebar").style.display = "none";
+                document.querySelector(".main").style.marginLeft = "0";
+                document.getElementById("masters-menu").style.display = "none";
+                document.getElementById("transactions-menu").style.display = "none";
+                document.getElementById("accounting-menu").style.display = "none";
+                document.getElementById("masters-arrow").innerHTML = "►";
+                document.getElementById("transactions-arrow").innerHTML = "►";
+                document.getElementById("accounting-arrow").innerHTML = "►";
+            });
+
+
+            function toggleSidebar() {
+                var sidebar = document.querySelector(".sidebar");
+                var main = document.querySelector(".main");
+                if (sidebar.style.display === "none") {
+                    sidebar.style.display = "block";
+                    main.style.marginLeft = "240px";
+                } else {
+                    sidebar.style.display = "none";
+                    main.style.marginLeft = "0";
+                }
+            }
+
+            var drawerTargetRow = null;
+            var drawerAllProducts = [];
+            var drawerMode = "sale";
+            function openProductDrawer(input, mode) {
+                drawerTargetRow = input.closest("tr");
+                drawerMode = mode || "sale";
+                document.getElementById("productDrawerOverlay").style.display = "block";
+                document.getElementById("productDrawer").style.display = "flex";
+                document.getElementById("productDrawer").style.flexDirection = "column";
+                document.getElementById("drawerSearch").value = "";
+                document.getElementById("drawerSearch").focus();
+                if (drawerAllProducts.length === 0) {
+                    fetch("/api/products-with-stock")
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        drawerAllProducts = data.products;
+                        renderDrawerProducts(drawerAllProducts);
+                    });
+                } else {
+                    renderDrawerProducts(drawerAllProducts);
+                }
+            }
+
+            function renderDrawerProducts(list) {
+                var tbody = document.getElementById("drawerProductList");
+                tbody.innerHTML = "";
+                if (list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center; color:#999;">No Products Found</td><tr>'
+                    return;
+                }
+                list.forEach(function(p) {
+                    var row = document.createElement("tr");
+                    row.style.cursor = "pointer";
+                    row.onmouseover = function() { row.style.background = "#fff4ec"; };
+                    row.onmouseout = function() { row.style.background = "white"; };
+                    row.onclick = function() { pickProduct(p); };
+                    row.innerHTML = "<td>" + p.name + "</td><td>" + (p.category || "") + "</td><td>" + (p.hsn || "") + "</td><td>" + (p.unit || "") + "</td><td style='font-weight:600; color:" + (p.stock <= 0 ? "#c1121f" : "#2d6a4f") + ";'>" + p.stock + "</td><td>" + (drawerMode === "purchase" ? p.purchase_price : p.sale_price) + "</td>";
+                    tbody.appendChild(row); 
+                }); 
+            }
+
+            function filterDrawerProducts() {
+                var search = document.getElementById("drawerSearch").value.toLowerCase();
+                var filtered = drawerAllProducts.filter(function(p) {
+                    return p.name.toLowerCase().includes(search);
+                });
+                renderDrawerProducts(filtered);
+            }
+
+            function pickProduct(p) {
+                var row = drawerTargetRow;
+                row.querySelector(".product-search").value = p.name;
+                row.querySelector('input[name="product_id[]"]').value = p.id;
+                row.querySelector('input[name="unit_id[]"]').value = p.unit_id;
+                row.querySelector('input[name="hsn_id[]"]').value = p.hsn_id;
+                row.querySelector('input[name="tax_rate[]"]').value = p.tax_rate;
+                row.querySelector('input[name="rate[]"]').value = (drawerMode === "purchase" ? p.purchase_price : p.sale_price);
+                calculateRow(row);
+                closeProductDrawer();
+                if (typeof checkPending === "function") {
+                    checkPending(p.id, row);
+                }
+            }
+
+            function closeProductDrawer() {
+                document.getElementById("productDrawerOverlay").style.display = "none";
+                document.getElementById("productDrawer").style.display = "none";
+            }
+        </script>
+
+        <!-- ===== PRODUCT DRAWER (shared across all forms) ===== -->
+        <div id="productDrawerOverlay" onclick="closeProductDrawer()" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9998;"></div>
+        <div id="productDrawer" style="display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 65%; background: white; z-index: 9999; border-radius: 16px 16px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
+            <div style="padding: 20px; border-bottom: 1px solid #e0ddd8; display: flex; gap: 12px; align-items: center;">
+                <input type="text" id="drawerSearch" placeholder="Search Products..." style="flex: 1; padding: 12px 16px; border: 1.5px solid #e0ddd8; border-radius: 8px; font-size: 15px;" autocomplete="off" onkeyup="filterDrawerProducts()">
+                <button type="button" onclick="closeProductDrawer()" style="background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 12px 20px; cursor: pointer;">✕ Close</button>
+            </div>
+
+            <div style="overflow-y: auto; height: calc(100%-80px); padding: 0 20px;">
+                <table style="width: 100%;">
+                    <thead style="position: sticky; top: 0; background: white;">
+                        <tr>
+                            <th>Product</th>
+                            <th>category</th>
+                            <th>HSN</th>
+                            <th>Unit</th>
+                            <th>Stock</th>
+                            <th>Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="drawerProductList"></tbody>
+                </table>
+            </div>
+        </div>
+    </body>
+
+</html>

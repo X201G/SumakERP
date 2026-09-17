@@ -1,0 +1,88 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Sales Day Book - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Sales Day Book{% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_orders') %}<a href="/manufacturing/orders" class="tab-btn {% if request.path.startswith('/manufacturing/orders') %}active{% endif %}">📥 Customer Orders</a>{% endif %}
+    {% if has_perm('mfg_batches') %}<a href="/manufacturing/batches" class="tab-btn {% if request.path.startswith('/manufacturing/batches') %}active{% endif %}">📦 Batches</a>{% endif %}
+    {% if has_perm('mfg_challans') %}<a href="/manufacturing/challans" class="tab-btn {% if request.path.startswith('/manufacturing/challans') %}active{% endif %}">📄 Challans</a>{% endif %}
+    {% if has_perm('mfg_invoices') %}<a href="/manufacturing/invoices" class="tab-btn {% if request.path.startswith('/manufacturing/invoices') %}active{% endif %}">🧾 Invoices</a>{% endif %}
+    {% if has_perm('mfg_outstanding') %}<a href="/manufacturing/sales-daybook" class="tab-btn {% if request.path.startswith('/manufacturing/sales-daybook') %}active{% endif %}">📅 Sales Day Book</a>{% endif %}
+</div>
+
+<small style="color: #6b6b6b; display: block; margin-bottom: 14px;">Every sales-side document created in this date range - Customer Orders, Delivery Challans, and Invoices - chronologically.</small>
+
+<form method="GET" action="/manufacturing/sales-daybook">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>From Date</label>
+        <input type="date" name="from_date" value="{{ from_date }}" onchange="this.form.submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>To Date</label>
+        <input type="date" name="to_date" value="{{ to_date }}" onchange="this.form.submit()">
+    </div>
+</form>
+
+<div style="display: flex; gap: 16px; margin: 20px 0; flex-wrap: wrap;">
+    <div class="stat-card">
+        <div class="stat-label">Order Value</div>
+        <div class="stat-value">₹{{ total_order_value }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Delivered Quantity</div>
+        <div class="stat-value">{{ total_delivered_qty }} pcs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Invoiced</div>
+        <div class="stat-value">₹{{ total_invoiced }}</div>
+    </div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Document No</th>
+            <th>Customer</th>
+            <th>Quantity</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in entries %}
+        <tr>
+            <td>{{ e.date }}</td>
+            <td><span class="badge badge-{{ 'info' if e.type == 'Order' else ('neutral' if e.type == 'Challan' else 'success') }}">{{ e.type }}</span></td>
+            <td>
+                {% if e.type == 'Order' %}<a href="/manufacturing/orders/{{ e.doc_id }}">{{ e.doc_no }}</a>
+                {% elif e.type == 'Challan' %}<a href="/manufacturing/challans/{{ e.doc_id }}">{{ e.doc_no }}</a>
+                {% else %}<a href="/manufacturing/invoices/{{ e.doc_id }}">{{ e.doc_no }}</a>{% endif %}
+            </td>
+            <td>{{ e.party_name }}</td>
+            <td>{{ e.quantity }}</td>
+            <td>{{ '₹' ~ e.amount if e.amount is not none else '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: #999;">No sales documents in this date range</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/sales-daybook?from_date={{ from_date }}&to_date={{ to_date }}&page={{ page - 1 }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/sales-daybook?from_date={{ from_date }}&to_date={{ to_date }}&page={{ page + 1 }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

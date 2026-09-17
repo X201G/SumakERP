@@ -1,0 +1,220 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}{{ batch.batch_no }} - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Resharpen Batch: {{ batch.batch_no }}{% endblock %}
+
+{% block content %}
+
+<a href="/manufacturing/resharpen/batches" style="display: inline-block; margin-bottom: 20px;">← Back to Batches</a>
+{% if has_perm('resharpen_batches', 'edit') %}
+<a href="/manufacturing/resharpen/batches/{{ batch.id }}/edit" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">{{ 'Edit Batch' if batch_untouched else 'Edit Remarks' }}</a>
+{% endif %}
+{% if batch_untouched and has_perm('resharpen_batches', 'delete') %}
+<a href="/manufacturing/resharpen/batches/delete/{{ batch.id }}" onclick="return confirm('Delete this batch?')" style="display: inline-block; margin-bottom: 20px; margin-left: 16px; color: #c1121f;">Delete Batch</a>
+{% endif %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05); margin-bottom: 24px;">
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Tool</div>
+            <div style="font-weight: 600;">{{ batch.tool_name }} ({{ batch.tool_type }})</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Quantity Received</div>
+            <div style="font-weight: 600;">{{ batch.quantity }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Date</div>
+            <div style="font-weight: 600;">{{ batch.batch_date }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Customer</div>
+            <div style="font-weight: 600;">{{ batch.customer_name }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Remarks</div>
+            <div style="font-weight: 600;">{{ batch.remarks or '-' }}</div>
+        </div>
+    </div>
+</div>
+
+{% if inward_challans %}
+<div style="background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05); margin-bottom: 16px;">
+    <h3 style="margin-bottom: 12px; color: #14213d;">Inward Receipt</h3>
+    {% for c in inward_challans %}
+    <p style="margin-bottom: 6px;">✓ {{ c.challan_date }} — <a href="/manufacturing/resharpen/challans/{{ c.id }}">{{ c.challan_no }}</a></p>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if total_cost %}
+<div style="background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05); margin-bottom: 16px;">
+    <h3 style="margin-bottom: 12px; color: #14213d;">Vendor Cost</h3>
+    {% for op in done_ops %}
+    {% if op.rate %}
+    <p style="margin-bottom: 4px;">{{ op.label }}: ₹{{ op.rate }}</p>
+    {% endif %}
+    {% endfor %}
+    <p style="margin-top: 8px; font-weight: 600;">Total: ₹{{ total_cost }}</p>
+</div>
+{% endif %}
+
+{% if done_ops %}
+<div style="background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05); margin-bottom: 16px;">
+    <h3 style="margin-bottom: 12px; color: #14213d;">Completed</h3>
+    {% for op in done_ops %}
+    <p style="color: #2d6a4f; font-weight: 600; margin-bottom: 6px;">
+        ✓ {{ op.label }}: {{ 'sent to ' ~ op.vendor_name if op.vendor_name else 'done in-house' }}
+        {% if op.dispatch_date %}on {{ op.dispatch_date }} ({{ op.quantity_sent }}){% endif %}, received {{ op.receive_date }} ({{ op.quantity_received }})
+        {% if op.vendor_name %}
+        {% if op.challan %}
+        <br><a href="/manufacturing/resharpen/challans/{{ op.challan.id }}">View Challan {{ op.challan.no }}</a>
+        {% else %}
+        <br>
+        <form method="POST" action="/manufacturing/resharpen/batches/{{ batch.id }}/generate-challan/{{ op.id }}" style="display: inline; background: none; border: none; box-shadow: none; padding: 0; margin: 0;">
+            <button type="submit" style="background: #2563eb; color: white; border: none; border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer;">Generate Challan</button>
+        </form>
+        {% endif %}
+        {% endif %}
+        {% if op.vendor_id and op.rate %}
+        <br>
+        {% if op.purchase_invoice_id %}
+        <a href="/manufacturing/purchase-invoices/{{ op.purchase_invoice_id }}">✓ Purchase Invoice: {{ op.vendor_invoice_no }}</a>
+        {% else %}
+        {% if has_perm('mfg_purchase_invoices', 'create') %}<a href="/manufacturing/resharpen/batches/{{ batch.id }}/stage/{{ op.id }}/invoice-vendor" style="background: #14213d; color: white; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; text-decoration: none; display: inline-block;">Create Purchase Invoice</a>{% endif %}
+        {% endif %}
+        {% endif %}
+    </p>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if done_ops %}
+<div style="background: white; padding: 20px 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05); margin-bottom: 16px;">
+    <h3 style="margin-bottom: 12px; color: #14213d;">Customer Delivery & Billing</h3>
+    {% for c in customer_challans %}
+    <p style="margin-bottom: 6px;">✓ Challan {{ c.challan_date }} — <a href="/manufacturing/resharpen/challans/{{ c.id }}">{{ c.challan_no }}</a></p>
+    {% endfor %}
+    {% for inv in invoices %}
+    <p style="margin-bottom: 6px;">✓ Invoice {{ inv.invoice_date }} — <a href="/manufacturing/resharpen/invoices/{{ inv.id }}">{{ inv.invoice_no }}</a> (₹{{ inv.total_amount }})</p>
+    {% endfor %}
+    <div style="display: flex; gap: 12px; margin-top: 4px;">
+        {% if has_perm('resharpen_challans', 'create') %}<a href="/manufacturing/resharpen/batches/{{ batch.id }}/challan/customer/new" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">+ New Delivery Challan</a>{% endif %}
+        {% if has_perm('resharpen_invoices', 'create') %}<a href="/manufacturing/resharpen/batches/{{ batch.id }}/invoice/new" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">+ New Invoice</a>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if not not_started and not pending_ops %}
+
+<div style="background: #d8f3dc; padding: 24px; border-radius: 12px; border: 1px solid #b7e4c7; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+    <h3 style="color: #2d6a4f; margin-bottom: 4px;">✓ Resharpening Complete</h3>
+    <p style="color: #2d6a4f;">All stages have been sent and received.</p>
+</div>
+
+{% elif pending_ops %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+    {% for op in pending_ops %}
+    <h3 style="margin-bottom: 8px; color: #14213d;">Receive: {{ op.label }}</h3>
+    <p style="margin-bottom: 16px; font-size: 13px; color: #6b6b6b;">
+        {{ 'sent to ' ~ op.vendor_name if op.vendor_name else 'in-house' }}
+        {% if op.dispatch_date %}on {{ op.dispatch_date }} ({{ op.quantity_sent }}){% endif %}
+        {% if op.vendor_name %}
+        {% if op.challan %}
+        — <a href="/manufacturing/resharpen/challans/{{ op.challan.id }}">View Challan {{ op.challan.no }}</a>
+        {% else %}
+        <form method="POST" action="/manufacturing/resharpen/batches/{{ batch.id }}/generate-challan/{{ op.id }}" style="display: inline; background: none; border: none; box-shadow: none; padding: 0; margin: 0;">
+            <button type="submit" style="background: #2563eb; color: white; border: none; border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 600; cursor: pointer;">Generate Challan</button>
+        </form>
+        {% endif %}
+        {% endif %}
+    </p>
+
+    <form method="POST" action="/manufacturing/resharpen/batches/{{ batch.id }}/receive/{{ op.id }}">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Receive Date</label>
+            <input type="date" name="receive_date" required>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Quantity Received</label>
+            <input type="number" name="quantity_received" value="{{ op.quantity_sent }}" required>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Vendor Rate (₹, optional)</label>
+            <input type="number" step="0.01" name="rate">
+        </div>
+        <button type="submit">Mark as Received</button>
+    </form>
+    {% endfor %}
+</div>
+
+{% elif not_started %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+    <h3 style="margin-bottom: 16px; color: #14213d;">Which stages should this shipment cover?</h3>
+
+    <form method="POST" action="/manufacturing/resharpen/batches/{{ batch.id }}/send">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+            {% if not_started|length > 1 %}
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; text-transform: none; font-size: 14px; background: none; padding: 0;">
+                <input type="checkbox" id="select_all_stages" style="width: auto;">
+                Select All Remaining
+            </label>
+            <hr style="border: none; border-top: 1px solid #e5e1d8; width: 100%; margin: 2px 0;">
+            {% endif %}
+            {% for stage in not_started %}
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; text-transform: none; font-size: 14px; background: none; padding: 0;">
+                <input type="checkbox" name="stages" class="stage-checkbox" value="{{ stage.key }}" style="width: auto;">
+                {{ stage.label }}
+            </label>
+            {% endfor %}
+        </div>
+        <script>
+            var selectAll = document.getElementById('select_all_stages');
+            if (selectAll) {
+                selectAll.addEventListener('change', function() {
+                    document.querySelectorAll('.stage-checkbox').forEach(function(cb) {
+                        cb.checked = selectAll.checked;
+                    });
+                });
+            }
+        </script>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Vendor (leave blank if done in-house)</label>
+            <select name="vendor_id" style="min-width: 220px;">
+                <option value="">-- In-House --</option>
+                {% for s in suppliers %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Dispatch Date</label>
+            <input type="date" name="dispatch_date" required>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Quantity</label>
+            <input type="number" name="quantity_sent" value="{{ batch.quantity }}" required>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Transporter</label>
+            <select name="transporter_id" style="min-width: 220px;">
+                <option value="">-- Select Transporter --</option>
+                {% for t in transporters %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Remarks</label>
+            <input type="text" name="remarks">
+        </div>
+        <button type="submit">Send Selected Stages</button>
+    </form>
+</div>
+
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - SUMAK ERP</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body {
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-box {
+            background: white;
+            width: 360px;
+            padding: 36px 32px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .logo-name {
+            font-size: 26px;
+            font-weight: 700;
+            color: #e85d04;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+        .logo-sub {
+            font-size: 12px;
+            color: #6b6b6b;
+            letter-spacing: 1px;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+            margin-top: 16px;
+        }
+        input {
+            width: 100%;
+            background: #faf9f7;
+            border: 1.5px solid #e0ddd8;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            outline: none;
+        }
+        input:focus { border-color: #e85d04; }
+        button {
+            width: 100%;
+            background: #e85d04;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 24px;
+        }
+        button:hover { background: #cf4f03; }
+        .flash-success {
+            background: #d8f3dc; color: #2d6a4f; border: 1px solid #b7e4c7;
+            border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px;
+        }
+        .flash-danger {
+            background: #ffe0e0; color: #c1121f; border: 1px solid #ffb3b3;
+            border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 16px;
+            font-size: 13px;
+            color: #6b6b6b;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo-name">SUMAK</div>
+        <div class="logo-sub">{{ 'MANUFACTURING LOGIN' if system == 'manufacturing' else 'DISTRIBUTION LOGIN' }}</div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category == "success" %}
+                        <p class="flash-success">{{ message }}</p>
+                    {% else %}
+                        <p class="flash-danger">{{ message }}</p>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <input type="hidden" name="system" value="{{ system }}">
+            <label>Username</label>
+            <input type="text" name="username" required autofocus>
+            <label>Password</label>
+            <input type="password" name="password" required>
+            <button type="submit">Log In</button>
+        </form>
+        <a href="/login" class="back-link">← Choose a different system</a>
+    </div>
+</body>
+</html>

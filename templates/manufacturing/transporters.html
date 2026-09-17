@@ -1,0 +1,88 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Transporter Master - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Transporter Master{% endblock %}
+
+{% block content %}
+
+<p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">Shared with Distribution - a transporter added here also shows up there, and vice versa.</p>
+
+{% if has_perm('mfg_transporters', 'create') %}
+<form method="POST" action="/manufacturing/transporters/add">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Name</label>
+        <input type="text" name="name" required>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Phone</label>
+        <input type="text" name="phone">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Email</label>
+        <input type="text" name="email">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Address</label>
+        <input type="text" name="address">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>City</label>
+        <input type="text" name="city">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>State</label>
+        <input type="text" name="state">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>GST Number</label>
+        <input type="text" name="gst_number">
+    </div>
+    <button type="submit">Save</button>
+</form>
+{% endif %}
+
+<input type="text" id="searchInput" placeholder="Search Transporters..." style="margin-bottom: 16px; margin-top: 16px; min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>City</th>
+            <th>GST Number</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for transporter in transporters %}
+        <tr>
+            <td>{{ transporter.name }}</td>
+            <td>{{ transporter.phone or '-' }}</td>
+            <td>{{ transporter.email or '-' }}</td>
+            <td>{{ transporter.city or '-' }}</td>
+            <td>{{ transporter.gst_number or '-' }}</td>
+            <td>
+                {% if has_perm('mfg_transporters', 'edit') %}<a href="/manufacturing/transporters/edit/{{ transporter.id }}">Edit</a>{% endif %}
+                {% if has_perm('mfg_transporters', 'edit') and has_perm('mfg_transporters', 'delete') %} | {% endif %}
+                {% if has_perm('mfg_transporters', 'delete') %}<a href="/manufacturing/transporters/delete/{{ transporter.id }}" onclick="return confirm('Delete this transporter?')">Delete</a>{% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: #999;">No transporters yet</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+document.getElementById("searchInput").addEventListener("keyup", function() {
+    var input = this.value.toLowerCase();
+    var rows = document.querySelectorAll("table tbody tr");
+    rows.forEach(function(row) {
+        row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
+    });
+});
+</script>
+
+{% endblock %}

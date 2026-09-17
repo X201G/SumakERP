@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Payments - SUMAK ERP{% endblock %}
+
+{% block page_title %}Payments Made{% endblock %}
+
+{% block content %}
+
+<a href="/purchase-payments/add" style="background: #e85d04; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ Record Payment Made</a>
+
+<form method="GET" action="/purchase-payments" id="filterForm">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Supplier</label>
+        <select name="supplier_id" onchange="document.getElementById('filterForm').submit()">
+            <option value="">All Suppliers</option>
+            {% for s in suppliers %}
+            <option value="{{ s.id }}" {% if supplier_id == s.id|string %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>From Date</label>
+        <input type="date" name="from_date" value="{{ from_date }}" onchange="document.getElementById('filterForm').submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>To Date</label>
+        <input type="date" name="to_date" value="{{ to_date }}" onchange="document.getElementById('filterForm').submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="visibility: hidden;">Clear</label>
+        <a href="/purchase-payments" style="padding: 10px 0;">Clear Filters</a>
+    </div>
+</form>
+
+<div style="background: white; border: 1px solid #e0ddd8; border-radius: 8px; padding: 14px 20px; margin: 20px 0; font-weight: 600;">
+    Total Paid (this filter): ₹{{ total_amount }}
+</div>
+
+<input type="text" id="searchInput" placeholder="Search on this page..." style="margin-bottom: 16px;">
+
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Invoice No</th>
+            <th>Supplier</th>
+            <th>Amount</th>
+            <th>Mode</th>
+            <th>Reference No</th>
+            <th>Remarks</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for payment in payments %}
+        <tr>
+            <td>{{ payment.payment_date }}</td>
+            <td>{{ payment.invoice_no or "On Account" }}</td>
+            <td>{{ payment.supplier_name }}</td>
+            <td>{{ payment.amount }}</td>
+            <td>{{ payment.payment_mode }}</td>
+            <td>{{ payment.reference_no }}</td>
+            <td>{{ payment.remarks }}</td>
+            <td>
+                <a href="/purchase-payments/edit/{{ payment.id }}">Edit</a> |
+                <a href="/purchase-payments/delete/{{ payment.id }}" onclick="return confirm('Delete this payment?')">Delete</a>
+            </td>
+
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/purchase-payments?page={{ page - 1 }}&supplier_id={{ supplier_id }}&from_date={{ from_date }}&to_date={{ to_date }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/purchase-payments?page={{ page + 1 }}&supplier_id={{ supplier_id }}&from_date={{ from_date }}&to_date={{ to_date }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+<script>
+    document.getElementById("searchInput").addEventListener("keyup", function() {
+        var input = this.value.toLowerCase();
+        var rows = document.querySelectorAll("table tbody tr");
+        rows.forEach(function(row) {
+            var text = row.innerText.toLowerCase();
+            if (text.includes(input)) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    });
+</script>
+
+{% endblock %}

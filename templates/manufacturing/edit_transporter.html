@@ -1,0 +1,43 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Transporter - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Transporter{% endblock %}
+
+{% block content %}
+
+<p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">Shared with Distribution - changes here also show up there.</p>
+
+<form method="POST" action="/manufacturing/transporters/edit/{{ transporter.id }}">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Name</label>
+        <input type="text" name="name" value="{{ transporter.name or '' }}" required>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Phone</label>
+        <input type="text" name="phone" value="{{ transporter.phone or '' }}">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Email</label>
+        <input type="text" name="email" value="{{ transporter.email or '' }}">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Address</label>
+        <input type="text" name="address" value="{{ transporter.address or '' }}">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>City</label>
+        <input type="text" name="city" value="{{ transporter.city or '' }}">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>State</label>
+        <input type="text" name="state" value="{{ transporter.state or '' }}">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>GST Number</label>
+        <input type="text" name="gst_number" value="{{ transporter.gst_number or '' }}">
+    </div>
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

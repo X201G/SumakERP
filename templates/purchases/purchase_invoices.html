@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Invoices - SUMAK ERP{% endblock %}
+
+{% block page_title %}Purchase Invoices{% endblock %}
+
+{% block content %}
+
+<a href="/purchase-invoices/add" style="background: #e85d04; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">+ New Purchase Invoice</a>
+<input type="text" id="searchInput" placeholder="Search Purchase invoices...">
+
+<table>
+    <thead>
+        <tr>
+            <th>Invoice No</th>
+            <th>Date</th>
+            <th>Supplier</th>
+            <th>Sup Invoice No</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for invoice in invoices %}
+        <tr>
+            <td>{{ invoice.invoice_no }}</td>
+            <td>{{ invoice.invoice_date }}</td>
+            <td>{{ invoice.supplier_name }}</td>
+            <td>{{ invoice.sup_invoice_no }}</td>
+            <td>{{ invoice.total_amount }}</td>
+            <td>{{ invoice.status }}</td>
+            <td>
+                <a href="/purchase-invoices/view/{{ invoice.id }}">View</a> |
+                <a href="/purchase-invoices/delete/{{ invoice.id }}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/purchase-invoices?page={{ page - 1 }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/purchase-invoices?page={{ page + 1 }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+<script>
+    document.getElementById("searchInput").addEventListener("keyup", function() {
+        var input = this.value.toLowerCase();
+        var rows = document.querySelectorAll("table tbody tr");
+        rows.forEach(function(row) {
+            var text = row.innerText.toLowerCase();
+            if (text.includes(input)) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        });
+    });
+</script>
+
+{% endblock %}

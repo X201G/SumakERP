@@ -1,0 +1,71 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Customer Orders - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Customer Orders{% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_orders') %}<a href="/manufacturing/orders" class="tab-btn {% if request.path.startswith('/manufacturing/orders') %}active{% endif %}">📥 Customer Orders</a>{% endif %}
+    {% if has_perm('mfg_batches') %}<a href="/manufacturing/batches" class="tab-btn {% if request.path.startswith('/manufacturing/batches') %}active{% endif %}">📦 Batches</a>{% endif %}
+    {% if has_perm('mfg_challans') %}<a href="/manufacturing/challans" class="tab-btn {% if request.path.startswith('/manufacturing/challans') %}active{% endif %}">📄 Challans</a>{% endif %}
+    {% if has_perm('mfg_invoices') %}<a href="/manufacturing/invoices" class="tab-btn {% if request.path.startswith('/manufacturing/invoices') %}active{% endif %}">🧾 Invoices</a>{% endif %}
+    {% if has_perm('mfg_outstanding') %}<a href="/manufacturing/sales-daybook" class="tab-btn {% if request.path.startswith('/manufacturing/sales-daybook') %}active{% endif %}">📅 Sales Day Book</a>{% endif %}
+</div>
+
+{% if has_perm('mfg_orders', 'create') %}
+<a href="/manufacturing/orders/add" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ New Order</a>
+{% endif %}
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px;">
+    <input type="hidden" name="page" value="1">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by order no, PO no or customer..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Order No</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>PO No</th>
+            <th>Ordered Qty</th>
+            <th>Pending Qty</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for o in orders %}
+        <tr>
+            <td><a href="/manufacturing/orders/{{ o.id }}">{{ o.order_no }}</a></td>
+            <td>{{ o.order_date }}</td>
+            <td>{{ o.customer_name or '' }}</td>
+            <td>{{ o.po_no or '' }}</td>
+            <td>{{ o.total_qty }}</td>
+            <td>{{ o.total_qty - o.total_billed }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: #999;">No orders found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/orders?page={{ page - 1 }}&q={{ q | urlencode }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/orders?page={{ page + 1 }}&q={{ q | urlencode }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

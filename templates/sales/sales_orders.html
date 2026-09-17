@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Orders - SUMAK ERP{% endblock %}
+
+{% block page_title %}Sales Orders{% endblock %}
+
+{% block content %}
+
+<a href="/sales-orders/add" style="background: #e85d04; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">+ New Sales Order</a>
+<form method="GET" action="/sales-orders" style="display: inline;" id="searchForm">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search Sales Orders..." style="padding: 10px 14px;" id="searchBox" autofocus autocomplete="off">
+    {% if search %}
+    <a href="/sales-orders" style="margin-left: 8px;">Clear</a>
+    {% endif %}
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>Order No</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>PO No</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td>{{ order.order_no }}</td>
+            <td>{{ order.order_date }}</td>
+            <td>{{ order.customer_name }}</td>
+            <td>{{ order.po_no }}</td>
+            <td>{{ order.total_amount }}</td>
+            <td>
+                {% if order.total_billed and order.total_billed >= order.total_qty %}
+                    <span style="background: #d8f3dc; color: #2d6a4f; padding: 4px 10px; border-radius: 12px; font-size: 12px;">✅ Completed</span>
+                {% elif order.total_billed and order.total_billed > 0 %}
+                    <span style="background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-size: 12px;">🟡 Partial</span>
+                {% else %}
+                    <span style="background: #e2e3e5; color: #383d41; padding: 4px 10px; border-radius: 12px; font-size: 12px;">⚪ Open</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="/sales-orders/view/{{ order.id }}">View</a> |
+                <a href="/sales-orders/delete/{{ order.id }}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/sales-orders?page={{ page - 1 }}&search={{ search }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/sales-orders?page={{ page + 1 }}&search={{ search }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+<script>
+    var searchBox = document.getElementById("searchBox");
+    var timer;
+    var val = searchBox.value;
+    searchBox.value = "";
+    searchBox.value = val;
+    searchBox.addEventListener("input", function() {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            document.getElementById("searchForm").submit();
+        }, 300);
+    });
+</script>
+
+{% endblock %}

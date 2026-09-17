@@ -1,0 +1,71 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Stock Ledger - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Stock Ledger{% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    <a href="/manufacturing/stock" class="tab-btn {% if request.path == '/manufacturing/stock' %}active{% endif %}">📊 Finished Tools</a>
+    <a href="/manufacturing/stock/rods" class="tab-btn {% if request.path.startswith('/manufacturing/stock/rods') %}active{% endif %}">🔩 Raw Material Stock</a>
+    <a href="/manufacturing/stock/ledger" class="tab-btn {% if request.path.startswith('/manufacturing/stock/ledger') %}active{% endif %}">📜 Stock Ledger</a>
+</div>
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px;">
+    <input type="hidden" name="page" value="1">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by item or reference no..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Item</th>
+            <th>Type</th>
+            <th>In/Out</th>
+            <th>Quantity</th>
+            <th>Reference</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in movements %}
+        <tr>
+            <td>{{ m.movement.movement_date }}</td>
+            <td>{{ m.item_name }}</td>
+            <td>{{ 'Rod' if m.movement.item_type == 'rod' else 'Tool' }}</td>
+            <td>
+                {% if m.movement.movement_type == 'in' %}
+                <span class="badge badge-success">IN</span>
+                {% else %}
+                <span class="badge badge-warning">OUT</span>
+                {% endif %}
+            </td>
+            <td>{{ m.movement.quantity }} {{ m.unit }}</td>
+            <td>{{ m.movement.source_no or '' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: #999;">No stock movements found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/stock/ledger?page={{ page - 1 }}&q={{ q | urlencode }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e5e1d8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/stock/ledger?page={{ page + 1 }}&q={{ q | urlencode }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}{{ invoice.invoice_no }} - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Invoice: {{ invoice.invoice_no }}{% endblock %}
+
+{% block content %}
+
+<a href="/manufacturing/invoices" style="display: inline-block; margin-bottom: 20px;">← Back to Invoices</a>
+<a href="/manufacturing/invoices/{{ invoice.id }}/print" target="_blank" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">🖨 Print</a>
+{% if has_perm('mfg_invoices', 'edit') %}
+<a href="/manufacturing/invoices/{{ invoice.id }}/edit" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">Edit</a>
+{% endif %}
+{% if has_perm('mfg_invoices', 'delete') %}
+    {% if delete_blocked %}
+    <span style="display: inline-block; margin-bottom: 20px; margin-left: 16px; color: #999;" title="A payment has already been recorded against this invoice">Delete (locked)</span>
+    {% else %}
+    <a href="/manufacturing/invoices/delete/{{ invoice.id }}" onclick="return confirm('Delete this invoice?')" style="display: inline-block; margin-bottom: 20px; margin-left: 16px; color: #c1121f;">Delete</a>
+    {% endif %}
+{% endif %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px;">
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px;">
+        <div>
+            <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Invoice No</div>
+            <div style="font-weight: 600;">{{ invoice.invoice_no }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Date</div>
+            <div style="font-weight: 600;">{{ invoice.invoice_date }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Customer</div>
+            <div style="font-weight: 600;">{{ customer.name if customer else '-' }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Due Date</div>
+            <div style="font-weight: 600;">{{ invoice.due_date or '-' }}</div>
+        </div>
+        <div>
+            <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Total</div>
+            <div style="font-weight: 600;">₹{{ invoice.total_amount }}</div>
+        </div>
+    </div>
+    {% if invoice.remarks %}
+    <div style="font-size: 13px; color: #6b6b6b;">Remarks: {{ invoice.remarks }}</div>
+    {% endif %}
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Batch No</th>
+            <th>Tool</th>
+            <th>Quantity</th>
+            <th>Rate</th>
+            <th>Tax</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td><a href="/manufacturing/batches/{{ item.batch_id }}">{{ item.batch_no }}</a></td>
+            <td>{{ item.tool_name }} ({{ item.tool_type }})</td>
+            <td>{{ item.quantity }}</td>
+            <td>₹{{ item.rate }}</td>
+            <td>₹{{ item.tax_amount }} ({{ item.tax_rate }}%)</td>
+            <td>₹{{ item.amount }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

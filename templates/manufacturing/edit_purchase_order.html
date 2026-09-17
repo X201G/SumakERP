@@ -1,0 +1,256 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Purchase Order - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Purchase Order: {{ order.order_no }}{% endblock %}
+
+{% block content %}
+
+{% if not untouched %}
+<div style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00;">
+    Only transporter and remarks can be changed here. Supplier and line items are locked since a GRN has already been raised against this order.
+</div>
+{% endif %}
+
+<form method="POST" action="/manufacturing/purchase-orders/{{ order.id }}/edit" id="poForm">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Supplier</label>
+        <select name="supplier_id" style="min-width: 220px;" {% if not untouched %}disabled{% endif %}>
+            <option value="">-- Select Supplier --</option>
+            {% for s in suppliers %}
+            <option value="{{ s.id }}" {% if order.supplier_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Transporter</label>
+        <select name="transporter_id" style="min-width: 220px;">
+            <option value="">-- Select Transporter --</option>
+            {% for t in transporters %}
+            <option value="{{ t.id }}" {% if order.transporter_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ order.remarks or '' }}">
+    </div>
+
+    {% if untouched %}
+    <div style="width: 100%;">
+        <h3 style="margin: 16px 0 12px; color: #14213d;">Order Items</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="min-width: 130px;">Type</th>
+                    <th style="min-width: 260px;">Item Details</th>
+                    <th>Qty</th>
+                    <th>Unit</th>
+                    <th>Rate (₹)</th>
+                    <th>HSN</th>
+                    <th>Tax %</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="poItemsBody"></tbody>
+        </table>
+        <button type="button" onclick="addPoRow()" style="background: #14213d; margin-top: 12px;">+ Add Row</button>
+    </div>
+    {% endif %}
+
+    <div style="width: 100%; margin-top: 16px;">
+        <button type="submit">Save</button>
+    </div>
+</form>
+
+{% if untouched %}
+<script>
+    const existingPoItems = [
+        {% for it in items %}
+        {type: {{ it.item_type|tojson }}, itemId: {{ it.item_id if it.item_id is not none else 'null' }},
+         description: {{ (it.description or '')|tojson }}, rodGrade: {{ (it.rod_grade or '')|tojson }},
+         rodDiameter: {{ it.rod_diameter_mm if it.rod_diameter_mm is not none else 'null' }},
+         rodLength: {{ it.rod_length_mm if it.rod_length_mm is not none else 'null' }},
+         quantity: {{ it.quantity }}, unitId: {{ it.unit_id if it.unit_id is not none else 'null' }},
+         rate: {{ it.rate }}, hsn: {{ (it.hsn_code or '')|tojson }}, taxRate: {{ it.tax_rate }}},
+        {% endfor %}
+    ];
+
+    const itemsMaster = [
+        {% for it in items_master %}
+        {id: {{ it.id }}, name: {{ it.item_name|tojson }}, unitId: {{ it.unit_id if it.unit_id is not none else 'null' }}, hsn: {{ (it.hsn_code or '')|tojson }}, price: {{ ((it.purchase_price or 0) * (1 - (it.purchase_discount_percent or 0) / 100)) | round(2) }}},
+        {% endfor %}
+    ];
+    const toolsMaster = [
+        {% for t in tools_master %}
+        {id: {{ t.id }}, code: {{ (t.item_code or '')|tojson }}, name: {{ t.tool_name|tojson }}, type: {{ t.tool_type|tojson }}, price: {{ ((t.purchase_price or 0) * (1 - (t.purchase_discount_percent or 0) / 100)) | round(2) }}},
+        {% endfor %}
+    ];
+    const unitsMaster = [
+        {% for u in units %}
+        {id: {{ u.id }}, name: {{ u.unit_name|tojson }}},
+        {% endfor %}
+    ];
+
+    function unitOptions(selectedId) {
+        let html = '<option value="">-</option>';
+        unitsMaster.forEach(function(u) {
+            html += '<option value="' + u.id + '"' + (String(selectedId) === String(u.id) ? ' selected' : '') + '>' + u.name + '</option>';
+        });
+        return html;
+    }
+
+    function openItemPickerForRow(el) {
+        const row = el.closest('tr');
+        openPickerDrawer(
+            itemsMaster,
+            [{label: 'Item', value: it => it.name}, {label: 'HSN', value: it => it.hsn || '-'}, {label: 'Price', value: it => it.price !== null ? '₹' + it.price : '-'}],
+            ['name'],
+            function(it) { pickItemForRow(row, it); },
+            'Search items...'
+        );
+    }
+
+    function pickItemForRow(row, it) {
+        row.querySelector('.item-display').value = it.name;
+        row.querySelector('.item-select-id').value = it.id;
+        if (it.unitId) row.querySelector('.unit-select').value = it.unitId;
+        if (it.hsn) row.querySelector('[name="hsn_code[]"]').value = it.hsn;
+        if (it.price !== null) row.querySelector('[name="rate[]"]').value = it.price;
+    }
+
+    function openToolPickerForRow(el) {
+        const row = el.closest('tr');
+        openPickerDrawer(
+            toolsMaster,
+            [{label: 'Item Code', value: t => '<strong>' + t.code + '</strong>'}, {label: 'Tool Name', value: t => t.name}, {label: 'Type', value: t => t.type}],
+            ['code', 'name', 'type'],
+            function(t) { pickToolForRow(row, t); },
+            'Search tools by item code, name or type...'
+        );
+    }
+
+    function pickToolForRow(row, t) {
+        row.querySelector('.tool-display').value = t.code + ' — ' + t.name + ' (' + t.type + ')';
+        row.querySelector('.tool-select-id').value = t.id;
+        row.querySelector('[name="rate[]"]').value = t.price;
+    }
+
+    function addPoRow(prefill) {
+        const tbody = document.getElementById('poItemsBody');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <select class="row-type" onchange="toggleRowType(this)">
+                    <option value="rod">Rod</option>
+                    <option value="item">Item</option>
+                    <option value="tool">Tool (bought-in)</option>
+                </select>
+                <input type="hidden" class="f-item-type" name="item_type[]" value="rod">
+                <input type="hidden" class="f-item-id" name="item_id[]" value="">
+                <input type="hidden" class="f-description" name="description[]" value="">
+                <input type="hidden" class="f-rod-grade" name="rod_grade[]" value="">
+                <input type="hidden" class="f-rod-diameter" name="rod_diameter_mm[]" value="">
+                <input type="hidden" class="f-rod-length" name="rod_length_mm[]" value="">
+            </td>
+            <td>
+                <div class="rod-fields" style="display: flex; gap: 4px; flex-wrap: wrap;">
+                    <input type="text" class="rod-grade-input" placeholder="Grade" style="width: 90px;">
+                    <input type="number" class="rod-dia-input" placeholder="Dia mm" step="0.01" style="width: 80px;">
+                    <input type="number" class="rod-len-input" placeholder="Length mm" step="0.01" style="width: 90px;">
+                </div>
+                <div class="item-fields" style="display: none;">
+                    <input type="text" class="item-display" readonly placeholder="Click to select item..." onclick="openItemPickerForRow(this)" style="min-width: 220px; cursor: pointer; background: white;">
+                    <input type="hidden" class="item-select-id">
+                </div>
+                <div class="tool-fields" style="display: none;">
+                    <input type="text" class="tool-display" readonly placeholder="Click to select tool..." onclick="openToolPickerForRow(this)" style="min-width: 240px; cursor: pointer; background: white;">
+                    <input type="hidden" class="tool-select-id">
+                </div>
+            </td>
+            <td><input type="number" name="quantity[]" step="0.01" style="width: 70px;"></td>
+            <td><select name="unit_id[]" class="unit-select" style="width: 90px;"></select></td>
+            <td><input type="number" name="rate[]" step="0.01" style="width: 90px;"></td>
+            <td><input type="text" name="hsn_code[]" style="width: 80px;"></td>
+            <td><input type="number" name="tax_rate[]" value="18" step="0.01" style="width: 60px;"></td>
+            <td><button type="button" onclick="removePoRow(this)" style="background: #c1121f;">✕</button></td>
+        `;
+        tbody.appendChild(row);
+        row.querySelector('.unit-select').innerHTML = unitOptions(prefill ? prefill.unitId : null);
+        row.querySelector('.row-type').value = prefill ? prefill.type : 'rod';
+        toggleRowType(row.querySelector('.row-type'));
+
+        if (prefill) {
+            if (prefill.type === 'rod') {
+                row.querySelector('.rod-grade-input').value = prefill.rodGrade || '';
+                row.querySelector('.rod-dia-input').value = prefill.rodDiameter !== null ? prefill.rodDiameter : '';
+                row.querySelector('.rod-len-input').value = prefill.rodLength !== null ? prefill.rodLength : '';
+            } else if (prefill.type === 'item') {
+                row.querySelector('.item-display').value = prefill.description;
+                row.querySelector('.item-select-id').value = prefill.itemId;
+            } else if (prefill.type === 'tool') {
+                row.querySelector('.tool-display').value = prefill.description;
+                row.querySelector('.tool-select-id').value = prefill.itemId;
+            }
+            row.querySelector('[name="quantity[]"]').value = prefill.quantity;
+            row.querySelector('[name="rate[]"]').value = prefill.rate;
+            row.querySelector('[name="hsn_code[]"]').value = prefill.hsn || '';
+            row.querySelector('[name="tax_rate[]"]').value = prefill.taxRate;
+        }
+    }
+
+    function toggleRowType(select) {
+        const row = select.closest('tr');
+        const type = select.value;
+        row.querySelector('.rod-fields').style.display = type === 'rod' ? 'flex' : 'none';
+        row.querySelector('.item-fields').style.display = type === 'item' ? 'block' : 'none';
+        row.querySelector('.tool-fields').style.display = type === 'tool' ? 'block' : 'none';
+    }
+
+    function removePoRow(btn) {
+        const tbody = document.getElementById('poItemsBody');
+        if (tbody.rows.length > 1) {
+            btn.closest('tr').remove();
+        }
+    }
+
+    document.getElementById('poForm').addEventListener('submit', function() {
+        document.querySelectorAll('#poItemsBody tr').forEach(function(row) {
+            const type = row.querySelector('.row-type').value;
+            row.querySelector('.f-item-type').value = type;
+            if (type === 'rod') {
+                const grade = row.querySelector('.rod-grade-input').value || 'Rod';
+                const dia = row.querySelector('.rod-dia-input').value;
+                const len = row.querySelector('.rod-len-input').value;
+                row.querySelector('.f-item-id').value = '';
+                row.querySelector('.f-description').value = grade + (dia ? ' ' + dia + 'mm dia' : '') + (len ? ' x ' + len + 'mm' : '');
+                row.querySelector('.f-rod-grade').value = row.querySelector('.rod-grade-input').value;
+                row.querySelector('.f-rod-diameter').value = dia;
+                row.querySelector('.f-rod-length').value = len;
+            } else if (type === 'item') {
+                row.querySelector('.f-item-id').value = row.querySelector('.item-select-id').value;
+                row.querySelector('.f-description').value = row.querySelector('.item-display').value;
+                row.querySelector('.f-rod-grade').value = '';
+                row.querySelector('.f-rod-diameter').value = '';
+                row.querySelector('.f-rod-length').value = '';
+            } else if (type === 'tool') {
+                row.querySelector('.f-item-id').value = row.querySelector('.tool-select-id').value;
+                row.querySelector('.f-description').value = row.querySelector('.tool-display').value;
+                row.querySelector('.f-rod-grade').value = '';
+                row.querySelector('.f-rod-diameter').value = '';
+                row.querySelector('.f-rod-length').value = '';
+            }
+        });
+    });
+
+    if (existingPoItems.length) {
+        existingPoItems.forEach(function(it) { addPoRow(it); });
+    } else {
+        addPoRow();
+    }
+</script>
+{% endif %}
+
+{% endblock %}

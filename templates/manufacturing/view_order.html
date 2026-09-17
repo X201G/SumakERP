@@ -1,0 +1,73 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}{{ order.order_no }} - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Order: {{ order.order_no }}{% endblock %}
+
+{% block content %}
+
+<a href="/manufacturing/orders" style="display: inline-block; margin-bottom: 20px;">← Back to Orders</a>
+{% if has_perm('mfg_orders', 'edit') %}
+<a href="/manufacturing/orders/{{ order.id }}/edit" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">Edit</a>
+{% endif %}
+{% if has_perm('mfg_orders', 'delete') %}
+    {% if delete_blocked %}
+    <span style="display: inline-block; margin-bottom: 20px; margin-left: 16px; color: #999;" title="An invoice already references one of this order's items">Delete (locked)</span>
+    {% else %}
+    <a href="/manufacturing/orders/delete/{{ order.id }}" onclick="return confirm('Delete this order?')" style="display: inline-block; margin-bottom: 20px; margin-left: 16px; color: #c1121f;">Delete</a>
+    {% endif %}
+{% endif %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05); margin-bottom: 24px;">
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Customer</div>
+            <div style="font-weight: 600;">{{ order.customer_name or '-' }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Date</div>
+            <div style="font-weight: 600;">{{ order.order_date }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Customer PO No</div>
+            <div style="font-weight: 600;">{{ order.po_no or '-' }}</div>
+        </div>
+        <div style="grid-column: span 3;">
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Remarks</div>
+            <div style="font-weight: 600;">{{ order.remarks or '-' }}</div>
+        </div>
+    </div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Tool</th>
+            <th>Ordered Qty</th>
+            <th>Billed Qty</th>
+            <th>Pending Qty</th>
+            <th>Rate</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.tool_name }} ({{ item.tool_type }})</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.billed_qty }}</td>
+            <td>
+                {% if item.quantity - item.billed_qty > 0 %}
+                <span class="badge badge-warning">{{ item.quantity - item.billed_qty }}</span>
+                {% else %}
+                <span class="badge badge-success">0</span>
+                {% endif %}
+            </td>
+            <td>{{ '₹' + item.rate|string if item.rate else '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="text-align: center; color: #999;">No items on this order</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}{{ party_name }} - Outstanding - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Outstanding: {{ party_name }}{% endblock %}
+
+{% block content %}
+
+<a href="/manufacturing/outstanding?view=party&type={{ party_type }}" style="display: inline-block; margin-bottom: 20px;">← Back to Party-wise</a>
+<a href="/manufacturing/statement/{{ party_type }}/{{ party_id }}" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">View Full Statement →</a>
+
+<form method="GET" action="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="dir" value="{{ direction }}">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Search Invoice No</label>
+        <input type="text" name="q" value="{{ search }}" placeholder="Type and press Enter..." style="min-width: 280px;">
+    </div>
+    {% if search %}
+    <a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort={{ sort }}&dir={{ direction }}" style="align-self: center;">Clear Search</a>
+    {% endif %}
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th><a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort=invoice_no&dir={{ 'desc' if sort=='invoice_no' and direction=='asc' else 'asc' }}&q={{ search }}" style="color: #6b6b6b; text-decoration: none;">Invoice No{% if sort=='invoice_no' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th><a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort=invoice_date&dir={{ 'desc' if sort=='invoice_date' and direction=='asc' else 'asc' }}&q={{ search }}" style="color: #6b6b6b; text-decoration: none;">Invoice Date{% if sort=='invoice_date' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th><a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort=due_date&dir={{ 'desc' if sort=='due_date' and direction=='asc' else 'asc' }}&q={{ search }}" style="color: #6b6b6b; text-decoration: none;">Due Date{% if sort=='due_date' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th><a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort=total_amount&dir={{ 'desc' if sort=='total_amount' and direction=='asc' else 'asc' }}&q={{ search }}" style="color: #6b6b6b; text-decoration: none;">Total{% if sort=='total_amount' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th><a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort=paid&dir={{ 'desc' if sort=='paid' and direction=='asc' else 'asc' }}&q={{ search }}" style="color: #6b6b6b; text-decoration: none;">Paid{% if sort=='paid' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th><a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort=due&dir={{ 'desc' if sort=='due' and direction=='asc' else 'asc' }}&q={{ search }}" style="color: #6b6b6b; text-decoration: none;">Balance Due{% if sort=='due' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.invoice_no }}</td>
+            <td>{{ row.invoice_date }}</td>
+            <td>{{ row.due_date or '-' }}</td>
+            <td>₹{{ row.total_amount }}</td>
+            <td>₹{{ row.paid }}</td>
+            <td style="font-weight: 600; color: #c1121f;">₹{{ row.due }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: #999;">Nothing outstanding 🎉</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort={{ sort }}&dir={{ direction }}&q={{ search }}&page={{ page - 1 }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/outstanding/party/{{ party_type }}/{{ party_id }}?sort={{ sort }}&dir={{ direction }}&q={{ search }}&page={{ page + 1 }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

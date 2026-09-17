@@ -1,0 +1,54 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Resharpen Batch - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Batch: {{ batch.batch_no }}{% endblock %}
+
+{% block content %}
+
+{% if not untouched %}
+<div style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00;">
+    Only remarks can be changed here. Tool, customer and quantity are locked since work has already started on this batch.
+</div>
+{% else %}
+<div style="background: #eef6ff; border: 1px solid #b8d8f5; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #14213d;">
+    Nothing has been sent for this batch yet, so tool, customer and quantity can still be changed.
+</div>
+{% endif %}
+
+<form method="POST" action="/manufacturing/resharpen/batches/{{ batch.id }}/edit">
+
+    {% if untouched %}
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tool</label>
+        <select name="tool_id" required style="min-width: 320px;">
+            {% for t in tools %}
+            <option value="{{ t.id }}" {% if batch.tool_id == t.id %}selected{% endif %}>{{ t.item_code }} — {{ t.tool_name }} ({{ t.tool_type }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Customer</label>
+        <select name="customer_id" required style="min-width: 240px;">
+            {% for c in customers %}
+            <option value="{{ c.id }}" {% if batch.customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity</label>
+        <input type="number" name="quantity" value="{{ batch.quantity }}" required min="1">
+    </div>
+    {% endif %}
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ batch.remarks or '' }}">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Invoices - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Invoices{% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_orders') %}<a href="/manufacturing/orders" class="tab-btn {% if request.path.startswith('/manufacturing/orders') %}active{% endif %}">📥 Customer Orders</a>{% endif %}
+    {% if has_perm('mfg_batches') %}<a href="/manufacturing/batches" class="tab-btn {% if request.path.startswith('/manufacturing/batches') %}active{% endif %}">📦 Batches</a>{% endif %}
+    {% if has_perm('mfg_challans') %}<a href="/manufacturing/challans" class="tab-btn {% if request.path.startswith('/manufacturing/challans') %}active{% endif %}">📄 Challans</a>{% endif %}
+    {% if has_perm('mfg_invoices') %}<a href="/manufacturing/invoices" class="tab-btn {% if request.path.startswith('/manufacturing/invoices') %}active{% endif %}">🧾 Invoices</a>{% endif %}
+    {% if has_perm('mfg_outstanding') %}<a href="/manufacturing/sales-daybook" class="tab-btn {% if request.path.startswith('/manufacturing/sales-daybook') %}active{% endif %}">📅 Sales Day Book</a>{% endif %}
+</div>
+
+{% if has_perm('mfg_invoices', 'create') %}
+<a href="/manufacturing/invoices/pick-batch" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ New Invoice</a>
+{% endif %}
+
+<form method="GET" id="searchForm" style="margin-bottom: 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+    <input type="hidden" name="page" value="1">
+    <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Search by invoice no or customer..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('searchForm').submit(); }, 400);" style="min-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+    <input type="date" name="from_date" value="{{ from_date }}" onchange="document.getElementById('searchForm').submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+    <input type="date" name="to_date" value="{{ to_date }}" onchange="document.getElementById('searchForm').submit()" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #e0ddd8;">
+    {% if from_date or to_date or q %}
+    <a href="/manufacturing/invoices">Clear Filters</a>
+    {% endif %}
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+
+<table>
+    <thead>
+        <tr>
+            <th>Invoice No</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for inv in invoices %}
+        <tr>
+            <td><a href="/manufacturing/invoices/{{ inv.id }}">{{ inv.invoice_no }}</a></td>
+            <td>{{ inv.invoice_date }}</td>
+            <td>{{ inv.customer_name or '' }}</td>
+            <td>₹{{ inv.total_amount }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" style="text-align: center; color: #999;">No invoices found</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/invoices?page={{ page - 1 }}&q={{ q | urlencode }}&from_date={{ from_date }}&to_date={{ to_date }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/invoices?page={{ page + 1 }}&q={{ q | urlencode }}&from_date={{ from_date }}&to_date={{ to_date }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

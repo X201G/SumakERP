@@ -1,0 +1,143 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Sales Report - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Sales Report{% endblock %}
+
+{% block content %}
+
+{% set base_qs = 'q=' ~ (q|urlencode) ~ '&customer_id=' ~ customer_id ~ '&tool_id=' ~ tool_id ~ '&from_date=' ~ from_date ~ '&to_date=' ~ to_date ~ '&min_amount=' ~ min_amount ~ '&max_amount=' ~ max_amount ~ '&process=' ~ process %}
+
+<form method="GET" action="/manufacturing/reports/sales" id="filterForm">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Process</label>
+        <select name="process" onchange="document.getElementById('filterForm').submit()" style="min-width: 160px;">
+            <option value="" {% if not process %}selected{% endif %}>All</option>
+            <option value="new" {% if process == 'new' %}selected{% endif %}>New Tool</option>
+            <option value="resharpen" {% if process == 'resharpen' %}selected{% endif %}>Resharpening</option>
+        </select>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Customer</label>
+        <select name="customer_id" onchange="document.getElementById('filterForm').submit()" style="min-width: 200px;">
+            <option value="">All Customers</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}" {% if customer_id == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tool</label>
+        <select name="tool_id" onchange="document.getElementById('filterForm').submit()" style="min-width: 200px;">
+            <option value="">All Tools</option>
+            {% for t in tools %}
+            <option value="{{ t.id }}" {% if tool_id == t.id|string %}selected{% endif %}>{{ t.tool_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>From Date</label>
+        <input type="date" name="from_date" value="{{ from_date }}" onchange="document.getElementById('filterForm').submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>To Date</label>
+        <input type="date" name="to_date" value="{{ to_date }}" onchange="document.getElementById('filterForm').submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Min Line Amount (₹)</label>
+        <input type="number" name="min_amount" value="{{ min_amount }}" step="0.01" style="width: 110px;" onchange="document.getElementById('filterForm').submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Max Line Amount (₹)</label>
+        <input type="number" name="max_amount" value="{{ max_amount }}" step="0.01" style="width: 110px;" onchange="document.getElementById('filterForm').submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Search</label>
+        <input type="text" name="q" id="searchInput" value="{{ q }}" placeholder="Invoice no, customer, tool, batch..." oninput="clearTimeout(window._searchTimer); window._searchTimer = setTimeout(function(){ document.getElementById('filterForm').submit(); }, 400);">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="visibility: hidden;">Clear</label>
+        <a href="/manufacturing/reports/sales" style="padding: 10px 0;">Clear Filters</a>
+    </div>
+</form>
+<script>
+    (function() {
+        var el = document.getElementById('searchInput');
+        if (el.value) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+    })();
+</script>
+<small style="color: #6b6b6b; display: block; margin-top: 4px;">One row per invoiced batch line - every tool, quantity, rate and tax is shown, not just the invoice total.</small>
+
+<div style="display: flex; gap: 16px; margin: 20px 0;">
+    <div class="stat-card" style="flex: 1;">
+        <div class="stat-label">Subtotal (before tax)</div>
+        <div class="stat-value">₹{{ subtotal }}</div>
+    </div>
+    <div class="stat-card" style="flex: 1;">
+        <div class="stat-label">Tax Collected</div>
+        <div class="stat-value">₹{{ tax }}</div>
+    </div>
+    <div class="stat-card" style="flex: 1;">
+        <div class="stat-label">Total Sales (this filter)</div>
+        <div class="stat-value">₹{{ grand_total }}</div>
+    </div>
+</div>
+
+<div style="overflow-x: auto;">
+<table>
+    <thead>
+        <tr>
+            <th><a href="/manufacturing/reports/sales?sort=invoice_no&dir={{ 'desc' if sort=='invoice_no' and direction=='asc' else 'asc' }}&{{ base_qs }}" style="color: #6b6b6b; text-decoration: none;">Invoice No{% if sort=='invoice_no' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th><a href="/manufacturing/reports/sales?sort=invoice_date&dir={{ 'desc' if sort=='invoice_date' and direction=='asc' else 'asc' }}&{{ base_qs }}" style="color: #6b6b6b; text-decoration: none;">Date{% if sort=='invoice_date' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th>Process</th>
+            <th><a href="/manufacturing/reports/sales?sort=customer_name&dir={{ 'desc' if sort=='customer_name' and direction=='asc' else 'asc' }}&{{ base_qs }}" style="color: #6b6b6b; text-decoration: none;">Customer{% if sort=='customer_name' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th><a href="/manufacturing/reports/sales?sort=tool_name&dir={{ 'desc' if sort=='tool_name' and direction=='asc' else 'asc' }}&{{ base_qs }}" style="color: #6b6b6b; text-decoration: none;">Tool{% if sort=='tool_name' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th>Item Code</th>
+            <th>Batch No</th>
+            <th><a href="/manufacturing/reports/sales?sort=quantity&dir={{ 'desc' if sort=='quantity' and direction=='asc' else 'asc' }}&{{ base_qs }}" style="color: #6b6b6b; text-decoration: none;">Qty{% if sort=='quantity' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th><a href="/manufacturing/reports/sales?sort=rate&dir={{ 'desc' if sort=='rate' and direction=='asc' else 'asc' }}&{{ base_qs }}" style="color: #6b6b6b; text-decoration: none;">Rate{% if sort=='rate' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th>Tax %</th>
+            <th>Subtotal</th>
+            <th>Tax</th>
+            <th><a href="/manufacturing/reports/sales?sort=amount&dir={{ 'desc' if sort=='amount' and direction=='asc' else 'asc' }}&{{ base_qs }}" style="color: #6b6b6b; text-decoration: none;">Total{% if sort=='amount' %} {{ '▲' if direction=='asc' else '▼' }}{% endif %}</a></th>
+            <th>Remarks</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in rows %}
+        <tr>
+            <td><a href="/manufacturing/{{ 'resharpen/' if r.source == 'resharpen' else '' }}invoices/{{ r.invoice_id }}">{{ r.invoice_no }}</a></td>
+            <td>{{ r.invoice_date }}</td>
+            <td>{% if r.source == 'resharpen' %}<span class="badge badge-info">Resharpen</span>{% else %}<span class="badge badge-neutral">New Tool</span>{% endif %}</td>
+            <td>{{ r.customer_name or '-' }}</td>
+            <td>{{ r.tool_name }}</td>
+            <td>{{ r.item_code or '-' }}</td>
+            <td><a href="/manufacturing/{{ 'resharpen/' if r.source == 'resharpen' else '' }}batches/{{ r.batch_id }}">{{ r.batch_no }}</a></td>
+            <td>{{ r.quantity }}</td>
+            <td>₹{{ r.rate }}</td>
+            <td>{{ r.tax_rate }}%</td>
+            <td>₹{{ r.bef_tax_amt }}</td>
+            <td>₹{{ r.tax_amount }}</td>
+            <td>₹{{ r.amount }}</td>
+            <td>{{ r.invoice_remarks or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="14" style="text-align: center; color: #999;">No invoiced lines found for this filter</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/reports/sales?page={{ page - 1 }}&sort={{ sort }}&dir={{ direction }}&{{ base_qs }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }} — Showing {{ ((page - 1) * 20 + 1) if total else 0 }}-{{ [page * 20, total] | min }} of {{ total }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/reports/sales?page={{ page + 1 }}&sort={{ sort }}&dir={{ direction }}&{{ base_qs }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

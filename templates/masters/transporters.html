@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Transporter Master - SUMAK ERP{% endblock %}
+
+{% block page_title %}Transporter Master{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/transporters/add">
+    <div style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap;">
+        <input type="text" name="name" placeholder="Enter Transporter name">
+        <input type="text" name="phone" placeholder="Enter Phone Number">
+        <input type="text" name="email" placeholder="Enter Email">
+    </div>
+    <div style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap;">
+        <input type="text" name="address" placeholder="Enter Address">
+        <input type="text" name="city" placeholder="Enter city">
+        <input type="text" name="state" placeholder="Enter state">
+        <input type="text" name="gst_number" placeholder="Enter GST number">
+    </div>
+    <button type="submit">Save</button>
+</form>
+
+<input type="text" id="searchInput" placeholder="Search Transporters...">
+
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Email</th>
+            <th>City</th>
+            <th>GST Number</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for transporter in transporters %}
+        <tr>
+            <td>{{ transporter.id }}</td>
+            <td>{{ transporter.name }}</td>
+            <td>{{ transporter.phone }}</td>
+            <td>{{ transporter.email }}</td>
+            <td>{{ transporter.city }}</td>
+            <td>{{ transporter.gst_number }}</td>
+            <td>
+                <a href="/transporters/delete/{{ transporter.id }}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+document.getElementById("searchInput").addEventListener("keyup", function() {
+    var input = this.value.toLowerCase();
+    var rows = document.querySelectorAll("table tbody tr");
+    rows.forEach(function(row) {
+        var text = row.innerText.toLowerCase();
+        if (text.includes(input)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+    });
+});
+</script>
+
+{% endblock %}

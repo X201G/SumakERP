@@ -1,0 +1,34 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Add User - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Add User{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/manufacturing/users/add">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Username</label>
+        <input type="text" name="username" required>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Full Name</label>
+        <input type="text" name="full_name">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Password</label>
+        <input type="password" name="password" required>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Role</label>
+        <select name="role">
+            <option value="staff" selected>Staff (restricted - set permissions after creating)</option>
+            <option value="admin">Admin (full, unrestricted access)</option>
+        </select>
+    </div>
+    <button type="submit">Create User</button>
+</form>
+
+<a href="/manufacturing/users">&larr; Back to Users</a>
+
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}New Delivery Challan - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}New Delivery Challan{% endblock %}
+
+{% block content %}
+
+<div style="background: white; padding: 16px 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 16px;">
+    <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Batch</div>
+    <div style="font-weight: 600;">{{ batch.batch_no }} — {{ batch.tool_name }} — to {{ batch.customer_name }}</div>
+</div>
+
+<form method="POST" action="/manufacturing/resharpen/batches/{{ batch.id }}/challan/customer/new">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Date</label>
+        <input type="date" name="challan_date" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity Delivered</label>
+        <input type="number" name="quantity" value="{{ batch.quantity }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Transporter</label>
+        <select name="transporter_id" style="min-width: 220px;">
+            <option value="">-- Select Transporter --</option>
+            {% for t in transporters %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks">
+    </div>
+
+    <button type="submit">Create Challan</button>
+</form>
+
+{% endblock %}

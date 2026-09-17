@@ -1,0 +1,93 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Purchase Day Book - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Purchase Day Book{% endblock %}
+
+{% block content %}
+
+<div class="tab-bar">
+    {% if has_perm('mfg_purchase_orders') %}<a href="/manufacturing/purchase-orders" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-orders') %}active{% endif %}">🛒 Purchase Orders</a>{% endif %}
+    {% if has_perm('mfg_purchase_grn') %}<a href="/manufacturing/purchase-grn" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-grn') %}active{% endif %}">📥 Purchase GRN</a>{% endif %}
+    {% if has_perm('mfg_purchase_invoices') %}<a href="/manufacturing/purchase-invoices" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-invoices') %}active{% endif %}">🧾 Purchase Invoices</a>{% endif %}
+    {% if has_perm('mfg_purchase_returns') %}<a href="/manufacturing/purchase-returns" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-returns') %}active{% endif %}">↩️ Purchase Returns</a>{% endif %}
+    {% if has_perm('mfg_outstanding') %}<a href="/manufacturing/purchase-daybook" class="tab-btn {% if request.path.startswith('/manufacturing/purchase-daybook') %}active{% endif %}">📅 Purchase Day Book</a>{% endif %}
+</div>
+
+<small style="color: #6b6b6b; display: block; margin-bottom: 14px;">Every purchase-side document created in this date range - Purchase Orders, GRNs, Purchase Invoices, and Purchase Returns - chronologically.</small>
+
+<form method="GET" action="/manufacturing/purchase-daybook">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>From Date</label>
+        <input type="date" name="from_date" value="{{ from_date }}" onchange="this.form.submit()">
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>To Date</label>
+        <input type="date" name="to_date" value="{{ to_date }}" onchange="this.form.submit()">
+    </div>
+</form>
+
+<div style="display: flex; gap: 16px; margin: 20px 0; flex-wrap: wrap;">
+    <div class="stat-card">
+        <div class="stat-label">PO Value</div>
+        <div class="stat-value">₹{{ total_po_value }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">GRN (Received) Value</div>
+        <div class="stat-value">₹{{ total_grn_value }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Invoiced</div>
+        <div class="stat-value">₹{{ total_invoiced }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Returned</div>
+        <div class="stat-value">₹{{ total_returned }}</div>
+    </div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Document No</th>
+            <th>Supplier</th>
+            <th>Amount</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in entries %}
+        <tr>
+            <td>{{ e.date }}</td>
+            <td><span class="badge badge-{{ 'info' if e.type == 'PO' else ('success' if e.type == 'GRN' else ('neutral' if e.type == 'Invoice' else 'warning')) }}">{{ e.type }}</span></td>
+            <td>
+                {% if e.type == 'PO' %}<a href="/manufacturing/purchase-orders/{{ e.doc_id }}">{{ e.doc_no }}</a>
+                {% elif e.type == 'GRN' %}<a href="/manufacturing/purchase-grn/{{ e.doc_id }}">{{ e.doc_no }}</a>
+                {% elif e.type == 'Invoice' %}<a href="/manufacturing/purchase-invoices/{{ e.doc_id }}">{{ e.doc_no }}</a>
+                {% else %}<a href="/manufacturing/purchase-returns/{{ e.doc_id }}">{{ e.doc_no }}</a>{% endif %}
+            </td>
+            <td>{{ e.party_name or '-' }}</td>
+            <td>₹{{ e.amount }}</td>
+            <td>{{ e.status or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: #999;">No purchase documents in this date range</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/manufacturing/purchase-daybook?from_date={{ from_date }}&to_date={{ to_date }}&page={{ page - 1 }}" style="background: #14213d; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/manufacturing/purchase-daybook?from_date={{ from_date }}&to_date={{ to_date }}&page={{ page + 1 }}" style="background: #2563eb; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

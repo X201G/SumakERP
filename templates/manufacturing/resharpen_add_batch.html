@@ -1,0 +1,123 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}New Resharpen Batch - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}New Resharpen Batch{% endblock %}
+
+{% block content %}
+
+<p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">Creating this batch records the tools received from the customer for resharpening, and generates an inward receipt challan.</p>
+
+<form method="POST" action="/manufacturing/resharpen/batches/add">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Date</label>
+        <input type="date" name="batch_date" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tool</label>
+        <input type="text" id="tool_display" placeholder="Click to select a tool..." autocomplete="off" readonly onclick="openToolPicker()" style="min-width: 320px; cursor: pointer; background: white;">
+        <input type="hidden" name="tool_id" id="tool_id" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Customer</label>
+        <select name="customer_id" id="customer_id_select" required style="min-width: 240px;" onchange="fetchQuota()">
+            <option value="">-- Select Customer --</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
+        </select>
+        <small style="color: #6b6b6b;">Auto-fills from the tool's assigned customer - change it here if needed.</small>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity Received</label>
+        <input type="number" name="quantity" id="quantity_input" value="1" required oninput="renderQuota()">
+        <small id="quota_hint" style="color: #6b6b6b;"></small>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Transporter</label>
+        <select name="transporter_id" style="min-width: 220px;">
+            <option value="">-- Select Transporter --</option>
+            {% for t in transporters %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks">
+    </div>
+
+    <button type="submit">Create Batch</button>
+</form>
+
+<script>
+    const tools = [
+        {% for t in tools %}
+        {id: {{ t.id }}, code: {{ (t.item_code or '')|tojson }}, name: {{ t.tool_name|tojson }}, type: {{ t.tool_type|tojson }}, customerId: {{ t.customer_id|tojson }}},
+        {% endfor %}
+    ];
+
+    const toolIdInput = document.getElementById('tool_id');
+    const toolDisplay = document.getElementById('tool_display');
+
+    function openToolPicker() {
+        openPickerDrawer(
+            tools,
+            [{label: 'Item Code', value: t => '<strong>' + t.code + '</strong>'}, {label: 'Tool Name', value: t => t.name}, {label: 'Type', value: t => t.type}],
+            ['code', 'name', 'type'],
+            pickTool,
+            'Search tools by item code, name or type...'
+        );
+    }
+
+    function pickTool(t) {
+        toolIdInput.value = t.id;
+        toolDisplay.value = t.code + ' — ' + t.name + ' (' + t.type + ')';
+        if (t.customerId) {
+            document.getElementById('customer_id_select').value = t.customerId;
+        }
+        fetchQuota();
+    }
+
+    let currentQuota = null;
+
+    function fetchQuota() {
+        var customerId = document.getElementById('customer_id_select').value;
+        var toolId = toolIdInput.value;
+        var hint = document.getElementById('quota_hint');
+        if (!customerId || !toolId) {
+            currentQuota = null;
+            hint.textContent = '';
+            return;
+        }
+        fetch('/manufacturing/resharpen/api/tool-quota/' + customerId + '/' + toolId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                currentQuota = data;
+                renderQuota();
+            });
+    }
+
+    function renderQuota() {
+        var hint = document.getElementById('quota_hint');
+        if (!currentQuota) { hint.textContent = ''; return; }
+        if (currentQuota.unlimited) {
+            hint.style.color = '#6b6b6b';
+            hint.textContent = "We haven't sold this customer this tool - no purchase-quantity limit applies (their own tool from elsewhere).";
+            return;
+        }
+        var qty = parseInt(document.getElementById('quantity_input').value, 10) || 0;
+        var overLimit = (currentQuota.outstanding + qty) > currentQuota.sold_qty;
+        hint.style.color = overLimit ? '#c1121f' : '#6b6b6b';
+        hint.textContent = "Customer has bought " + currentQuota.sold_qty + " of this tool, " + currentQuota.outstanding +
+            " already with us - up to " + currentQuota.remaining + " more can be received right now." +
+            (overLimit ? " This quantity exceeds that." : "");
+    }
+</script>
+
+{% endblock %}

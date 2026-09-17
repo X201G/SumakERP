@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}New Sales Order - SUMAK ERP{% endblock %}
+
+{% block page_title %}New Sales Order{% endblock %}
+
+{% block content %}
+
+<style>
+    #items-table th, #items-table td {
+        padding: 8px;
+        text-align: left;
+    }
+
+    #items-table input, #items-table select {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+    }
+
+    #items-table th:last-child, #items-table td:last-child {
+        width: 100px;
+        text-align: center;
+    }
+
+    #items-table {
+        overflow: visible;
+    }
+
+    #items-table tbody tr {
+        position: relative;
+    }
+
+    .product-dropdown {
+        z-index: 9999 !important;
+    }
+</style>
+
+<form method="POST" action="/sales-orders/add">
+    <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px; box-sizing: border-box; width: 100%;">
+        <h3 style="margin-bottom: 16px; color: #1a1a1a;">Order Details</h3>
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; margin-bottom: 12px; gap: 10px; align-items: end;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Customer</label>
+                <select name="customer_id">
+                    <option value="">-- Select Customer --</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}">{{ customer.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Order Date</label>
+                <input type="date" name="order_date" required>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>PO No</label>
+                <input type="text" name="po_no" placeholder="Customer PO number...">
+            </div>
+
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 12px; align-items: end;">
+        
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>PO Date</label>
+                <input type="date" name="po_date">
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Kind Attn</label>
+                <input type="text" name="kind_attn" placeholder="Attention person...">
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Remarks</label>
+                <input type="text" name="remarks" placeholder="any notes...">
+            </div>
+        </div>
+
+    </div>
+
+    <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px;">
+        <h3 style="margin-bottom: 16px; color: #1a1a1a;">Order Items</h3>
+
+        <table id="items-table" style="width: 100%; table-layout: fixed;">
+            <colgroup>
+                <col style="width: 30%;">
+                <col style="width:9%;">
+                <col style="width:13%;">
+                <col style="width:11%;">
+                <col style="width:8%;">
+                <col style="width:15%;">
+                <col style="width:8%;">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Rate</th>
+                    <th>Discount</th>
+                    <th>Tax%</th>
+                    <th>Amount</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="items-body">
+                <tr>
+                    <td style="position: relative;">
+                        <input type="text" class="product-search" placeholder="Click to select product..." onclick="openProductDrawer(this, 'sale')" readonly autocomplete="off" style="cursor:pointer; background:white;">
+                        <input type="hidden" name="product_id[]">
+                        <input type="hidden" name="unit_id[]">
+                        <input type="hidden" name="hsn_id[]">
+                        <div class="product-dropdown" style="display: none; position: absolute; background: white; border: 1px solid #e0ddd8; border-radius: 8px; max-height: 200px; overflow-y: auto; width: 100%; z-index: 9999;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
+                    </td>
+                    <td><input type="number" name="quantity[]" placeholder="0" step="0.01"></td>
+                    <td><input type="number" name="rate[]" placeholder="0" step="0.01"></td>
+                    <td><input type="number" name="discount[]" placeholder="0" step="0.01"></td>
+                    <td><input type="number" name="tax_rate[]" placeholder="18" value="18" step="0.01"></td>
+                    <td><input type="number" name="amount[]" placeholder="0" step="0.01" readonly></td>
+                    <td><button type="button" onclick="removeRow(this)" style="background: #c1121f; color: white; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer;">✕</button></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <button type="button" onclick="addRow()" style="background: #1a1a2e; color: white; border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer; margin-top: 12px;">+ Add Row</button>
+    </div>
+
+    <div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div style="font-size: 20px; font-weight: 700;">
+            Total: ₹<span id="grand-total">0.00</span>
+        </div>
+        <a href="/sales-orders" style="background: #6b6b6b; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-right: 8px;">Cancel</a>
+        <button type="submit" style="background: #e85d04; color: white; border: none; border-radius: 8px; padding: 12px 32px; font-size: 16px; font-weight: 600; cursor: pointer;">Save Sales Order</button>
+    
+    </div>
+</form>
+
+<script>
+
+    var allProducts = [
+        {% for product in products %}
+        { id: "{{ product.id }}", name: "{{ product.product_name }}", unit_id: "{{ product.unit_id }}", hsn_id: "{{ product.hsn_id }}", tax_rate: "{{ product.tax_rate }}", sale_price: "{{ product.sale_price }}" },
+        {% endfor %}
+    ];
+
+    function calculateRow(row) {
+        var qty = parseFloat(row.querySelector('input[name="quantity[]"]').value) || 0;
+        var rate = parseFloat(row.querySelector('input[name="rate[]"]').value) || 0;
+        var discount =parseFloat(row.querySelector('input[name="discount[]"]').value) || 0;
+        var taxRate = parseFloat(row.querySelector('input[name="tax_rate[]"]').value) || 0;
+        var befTax = qty * rate * (1 - discount/100);
+        var taxAmount = befTax * taxRate / 100;
+        var amount = befTax + taxAmount;
+        row.querySelector('input[name="amount[]"]').value = amount.toFixed(2);
+        calculateTotal();
+        }
+
+    function calculateTotal() {
+        var total = 0;
+        document.querySelectorAll('input[name="amount[]"]').forEach(function(input) {
+            total += parseFloat(input.value) || 0;
+        });
+        document.getElementById("grand-total").innerText = total.toFixed(2);
+    }
+
+    document.addEventListener("input", function(e) {
+        if (e.target.closest("#items-body")) {
+            calculateRow(e.target.closest("tr"));
+        }
+    });
+
+    function addRow() {
+        var tbody = document.getElementById("items-body");
+        var firstRow = tbody.querySelector("tr");
+        var newRow = firstRow.cloneNode(true);
+        newRow.querySelectorAll("input").forEach(function(input) {
+            if (input.name === "tax_rate[]") {
+                input.value = "18";
+            } else {
+                input.value = "";
+            }
+        });
+        newRow.querySelector(".product-search").value = "";
+        newRow.querySelector('input[type="hidden"]').value = "";
+        tbody.appendChild(newRow);
+    }
+
+    function removeRow(button) {
+        var tbody = document.getElementById("items-body");
+        if (tbody.querySelectorAll("tr").length > 1) {
+            button.closest("tr").remove();
+            calculateTotal();
+        } else {
+            alert("At least one item is required!")
+        }
+    }
+
+    function showDropdown(input) {
+        var dropdown = input.parentElement.querySelector(".product-dropdown");
+        renderProducts(dropdown, allProducts, input);
+        dropdown.style.display = "block";
+    }
+
+    function renderProducts(dropdown, list, input) {
+        dropdown.innerHTML = "";
+        if (list.length === 0) {
+            dropdown.innerHTML = '<div style="padding:10px; color: #999;">No Products found</div>';
+            return;
+        }
+        list.forEach(function(product) {
+            var item = document.createElement("div");
+            item.innerText = product.name;
+            item.style.padding = "10px";
+            item.style.cursor = "pointer";
+            item.style.borderBottom = "1px solid #f0f0f0";
+            item.onmouseover = function() { item.style.background = "#f5f3ef"; };
+            item.onmouseout = function() { item.style.background = "white"; };
+            item.onclick = function() {
+                selectProduct(input, product);
+            };
+            dropdown.appendChild(item);
+        });
+    }
+
+    function selectProduct(input, product) {
+        input.value = product.name;
+        var td = input.parentElement;
+        td.querySelector('input[name="product_id[]"]').value = product.id;
+        td.querySelector('input[name="unit_id[]"]').value = product.unit_id;
+        td.querySelector('input[name="hsn_id[]"]').value = product.hsn_id;
+        td.querySelector(".product-dropdown").style.display = "none";
+        var row = input.closest("tr");
+        if (product.tax_rate) {
+            row.querySelector('input[name="tax_rate[]"]').value = product.tax_rate;
+        }
+        if (product.sale_price) {
+            row.querySelector('input[name="rate[]"]').value = product.sale_price;
+        }
+        calculateRow(row);
+    }
+
+    function filterProducts(input) {
+        var search = input.value.toLowerCase();
+        var filtered = allProducts.filter(function(product) {
+            return product.name.toLowerCase().includes(search);
+        });
+        var dropdown = input.parentElement.querySelector(".product-dropdown");
+        renderProducts(dropdown, filtered, input);
+        dropdown.style.display = "block";
+    }
+
+    document.addEventListener("click", function(e) {
+        if (!e.target.closest("td")) {
+            document.querySelectorAll(".product-dropdown").forEach(function(dropdown) {
+                dropdown.style.display = "none";
+            });
+        }
+    });
+</script>
+{% endblock %}

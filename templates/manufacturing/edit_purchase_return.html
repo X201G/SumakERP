@@ -1,0 +1,37 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Purchase Return - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Purchase Return: {{ ret.return_no }}{% endblock %}
+
+{% block content %}
+
+<div style="background: #fff8e6; border: 1px solid #f0d585; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #7a5c00;">
+    Only transporter, reason and remarks can be changed here. Line items are locked since stock has already moved - delete and re-create if those need to change.
+</div>
+
+<form method="POST" action="/manufacturing/purchase-returns/{{ ret.id }}/edit">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Transporter</label>
+        <select name="transporter_id" style="min-width: 220px;">
+            <option value="">-- Select Transporter --</option>
+            {% for t in transporters %}
+            <option value="{{ t.id }}" {% if ret.transporter_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <label>Reason</label>
+        <input type="text" name="reason" value="{{ ret.reason or '' }}">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ ret.remarks or '' }}">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

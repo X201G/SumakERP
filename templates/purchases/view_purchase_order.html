@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Order Details - SUMAK ERP{% endblock %}
+
+{% block page_title %}Purchase Order Details{% endblock %}
+
+{% block content %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px;">
+    <h3 style="margin-bottom: 16px;">Order: {{ order.order_no }}</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+        <div><strong>Supplier: </strong> {{ order.supplier_name }}</div>
+        <div><strong>Transporter: </strong>{{ order.transporter_name }}</div>
+        <div><strong>Order Date: </strong>{{ order.order_date }}</div>
+        <div><strong>Status: </strong>{{ order.status }}</div>
+        <div><strong>Kind Attn: </strong>{{ order.kind_attn }}</div>
+        <div><strong>Supplier Ref: </strong>{{ order.sup_ref_no }}</div>
+        <div><strong>Credit Days: </strong>{{ order.cr_days }}</div>
+        <div><strong>Valid Till: </strong>{{ order.valid_till }}</div>
+        <div><strong>Remarks: </strong>{{ order.remarks }}</div>
+    </div>
+</div>
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 24px;">
+    <h3 style="margin-bottom: 16px;">Items</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>HSN</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Rate</th>
+                <th>Discount%</th>
+                <th>Tax%</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.product_name }}</td>
+                <td>{{ item.hsn_code }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit_name }}</td>
+                <td>{{ item.rate }}</td>
+                <td>{{ item.discount }}</td>
+                <td>{{ item.tax_rate }}</td>
+                <td>{{ item.amount }}</td>    
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e0ddd8; text-align: right;">
+    <h2>Total: ₹{{ order.total_amount }}</h2>
+</div>
+
+<a href="/purchase-orders" style="display: inline-block; margin-top: 16px; background: #1a1a2e; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none;">← Back to Orders</a>
+
+{% endblock %}

@@ -1,0 +1,181 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Record Payment Received - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Record Payment Received{% endblock %}
+
+{% block content %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+    <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Customer</label>
+            <select id="customer-select" style="min-width: 260px;" onchange="loadCustomerInvoices()">
+                <option value="">-- Select Customer --</option>
+                {% for c in customers %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Show</label>
+            <select id="status-filter" onchange="renderInvoiceTable()">
+                <option value="due">Unpaid + Partial</option>
+                <option value="all">All Invoices</option>
+                <option value="unpaid">Unpaid Only</option>
+                <option value="partial">Partial Only</option>
+                <option value="paid">Fully Paid Only</option>
+            </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Search Invoice No</label>
+            <input type="text" id="invoice-search" placeholder="Type to filter..." onkeyup="renderInvoiceTable()">
+        </div>
+    </div>
+</div>
+
+<p id="no-customer-msg" style="color: #999;">Select a customer above to see their invoices.</p>
+
+<div id="on-account-box" style="display: none; margin-bottom: 16px; gap: 10px;">
+    <button type="button" onclick="selectOnAccount('new')" style="background: #14213d;">💰 On-Account Payment (Manufacturing)</button>
+    <button type="button" onclick="selectOnAccount('resharpen')" style="background: #14213d;">💰 On-Account Payment (Resharpening)</button>
+</div>
+
+<table id="invoice-table" style="display: none;">
+    <thead>
+        <tr>
+            <th>Invoice No</th>
+            <th>Date</th>
+            <th>Due Date</th>
+            <th>Total</th>
+            <th>Paid</th>
+            <th>Due</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody id="invoice-table-body"></tbody>
+</table>
+
+<div id="payment-form-box" style="display: none; background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; margin-top: 24px; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+    <h3 style="margin-bottom: 16px; color: #14213d;">Recording payment for: <span id="selected-invoice-label" style="color: #2563eb;"></span></h3>
+    <form method="POST" action="/manufacturing/sales-payments/add">
+        <input type="hidden" name="invoice_id" id="invoice_id_input">
+        <input type="hidden" name="customer_id" id="customer_id_input">
+        <input type="hidden" name="source" id="source_input" value="new">
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Payment Date</label>
+            <input type="date" name="payment_date" required>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Amount Received</label>
+            <input type="number" step="0.01" name="amount" id="amount_input" required>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Payment Mode</label>
+            <select name="payment_mode">
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="upi">UPI</option>
+                <option value="cheque">Cheque</option>
+            </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Reference No (Cheque/UTR/UPI Ref)</label>
+            <input type="text" name="reference_no">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label>Remarks</label>
+            <input type="text" name="remarks">
+        </div>
+
+        <button type="submit">Save Payment</button>
+    </form>
+</div>
+
+<script>
+    var currentInvoices = [];
+
+    function loadCustomerInvoices() {
+        var customerId = document.getElementById("customer-select").value;
+        document.getElementById("payment-form-box").style.display = "none";
+        document.getElementById("customer_id_input").value = customerId;
+        if (!customerId) {
+            document.getElementById("invoice-table").style.display = "none";
+            document.getElementById("on-account-box").style.display = "none";
+            document.getElementById("no-customer-msg").style.display = "block";
+            return;
+        }
+        document.getElementById("on-account-box").style.display = "flex";
+        fetch("/manufacturing/api/customer-invoices/" + customerId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                currentInvoices = data.invoices;
+                document.getElementById("no-customer-msg").style.display = "none";
+                document.getElementById("invoice-table").style.display = "table";
+                renderInvoiceTable();
+            });
+    }
+
+    function renderInvoiceTable() {
+        var statusFilter = document.getElementById("status-filter").value;
+        var search = document.getElementById("invoice-search").value.toLowerCase();
+        var tbody = document.getElementById("invoice-table-body");
+        tbody.innerHTML = "";
+
+        var filtered = currentInvoices.filter(function(inv) {
+            if (statusFilter === "due" && inv.status === "paid") return false;
+            if (statusFilter !== "all" && statusFilter !== "due" && inv.status !== statusFilter) return false;
+            if (search && inv.invoice_no.toLowerCase().indexOf(search) === -1) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#999;">No invoices match</td></tr>';
+            return;
+        }
+
+        filtered.forEach(function(inv) {
+            var statusColor = inv.status === "paid" ? "#2d6a4f" : (inv.status === "partial" ? "#92600a" : "#c1121f");
+            var sourceTag = inv.source === "resharpen" ? " <span class='badge badge-info'>Resharpen</span>" : "";
+            var row = document.createElement("tr");
+            row.innerHTML =
+                "<td>" + inv.invoice_no + sourceTag + "</td>" +
+                "<td>" + inv.invoice_date + "</td>" +
+                "<td>" + (inv.due_date || "") + "</td>" +
+                "<td>" + inv.total_amount + "</td>" +
+                "<td>" + inv.paid + "</td>" +
+                "<td style='font-weight:600;'>" + inv.due + "</td>" +
+                "<td style='color:" + statusColor + "; font-weight:600; text-transform:capitalize;'>" + inv.status + "</td>" +
+                "<td><button type='button' onclick='selectInvoice(" + inv.id + ", \"" + inv.source + "\")'>Pay</button></td>";
+            tbody.appendChild(row);
+        });
+    }
+
+    function selectInvoice(invoiceId, source) {
+        var inv = currentInvoices.find(function(i) { return i.id === invoiceId && i.source === source; });
+        if (!inv) return;
+        document.getElementById("invoice_id_input").value = inv.id;
+        document.getElementById("source_input").value = inv.source;
+        document.getElementById("selected-invoice-label").innerText = inv.invoice_no + " (Due: " + inv.due + ")";
+        document.getElementById("amount_input").value = inv.due;
+        document.getElementById("payment-form-box").style.display = "block";
+        document.getElementById("payment-form-box").scrollIntoView({behavior: "smooth"});
+    }
+
+    function selectOnAccount(source) {
+        document.getElementById("invoice_id_input").value = "";
+        document.getElementById("source_input").value = source;
+        document.getElementById("selected-invoice-label").innerText = "On Account" + (source === "resharpen" ? " - Resharpening" : " - Manufacturing") + " (not linked to a specific invoice)";
+        document.getElementById("amount_input").value = "";
+        document.getElementById("payment-form-box").style.display = "block";
+        document.getElementById("payment-form-box").scrollIntoView({behavior: "smooth"});
+    }
+</script>
+
+{% endblock %}

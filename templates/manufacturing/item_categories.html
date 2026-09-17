@@ -1,0 +1,37 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Item Categories - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Item Categories{% endblock %}
+
+{% block content %}
+
+{% if has_perm('mfg_item_categories', 'create') %}
+<a href="/manufacturing/item-categories/add" style="background: #2563eb; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 20px;">+ Add Category</a>
+{% endif %}
+<a href="/manufacturing/items" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">← Back to Items</a>
+
+<table>
+    <thead>
+        <tr>
+            <th>Category Name</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in categories %}
+        <tr>
+            <td>{{ c.name }}</td>
+            <td>
+                {% if has_perm('mfg_item_categories', 'edit') %}<a href="/manufacturing/item-categories/edit/{{ c.id }}">Edit</a>{% endif %}
+                {% if has_perm('mfg_item_categories', 'edit') and has_perm('mfg_item_categories', 'delete') %} | {% endif %}
+                {% if has_perm('mfg_item_categories', 'delete') %}<a href="/manufacturing/item-categories/delete/{{ c.id }}" onclick="return confirm('Delete this category?')">Delete</a>{% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="2" style="text-align: center; color: #999;">No categories yet</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Stock - SUMAK ERP{% endblock %}
+
+{% block page_title %}Stock{% endblock %}
+
+{% block content %}
+
+<form method="GET" action="/stock" style="display: inline;" id="searchForm">
+    <input type="text" name="search" value="{{ search }}" placeholder="Search products..." style="padding: 10px 14px;" id="searchBox" autofocus autocomplete="off">
+    {% if search %}
+    <a href="/stock" style="margin-left: 8px;">Clear</a>
+    {% endif %}
+</form>
+
+<table>
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Received</th>
+            <th>Issued</th>
+            <th>Current Stock</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in products %}
+        <tr>
+            <td>{{ product.product_name }}</td>
+            <td>{{ product.category_name }}</td>
+            <td style="color: #2d6a4f;">{{ product.total_received }}</td>
+            <td style="color: #c1121f;">{{ product.total_issued }}</td>
+            <td style="font-weight:600; color: {% if product.current_stock <= 0 %}#c1121f{% else %}#2d6a4f{% endif %};">
+                {{ product.current_stock }}
+            </td>
+            <td>
+                <a href="/stock/ledger/{{ product.id }}">View Ledger</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/stock?page={{ page - 1 }}&search={{ search }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/stock?page={{ page + 1 }}&search={{ search }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+<script>
+    var searchBox = document.getElementById("searchBox");
+    var timer;
+    var val = searchBox.value;
+    searchBox.value = "";
+    searchBox.value = val;
+    searchBox.addEventListener("input", function() {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            document.getElementById("searchForm").submit();
+        }, 10);
+    });
+</script>
+
+{% endblock %}

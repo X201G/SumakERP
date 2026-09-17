@@ -1,0 +1,85 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}{{ grn.grn_no }} - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}GRN: {{ grn.grn_no }}{% endblock %}
+
+{% block content %}
+
+<a href="/manufacturing/purchase-grn" style="display: inline-block; margin-bottom: 20px;">← Back to Purchase GRN</a>
+<a href="/manufacturing/purchase-grn/{{ grn.id }}/print" target="_blank" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">🖨 Print</a>
+{% if has_perm('mfg_purchase_grn', 'edit') %}
+<a href="/manufacturing/purchase-grn/{{ grn.id }}/edit" style="display: inline-block; margin-bottom: 20px; margin-left: 16px;">Edit</a>
+{% endif %}
+{% if has_perm('mfg_purchase_grn', 'delete') %}
+    {% if delete_blocked %}
+    <span style="display: inline-block; margin-bottom: 20px; margin-left: 16px; color: #999;" title="A Purchase Invoice already references this GRN">Delete (locked)</span>
+    {% else %}
+    <a href="/manufacturing/purchase-grn/delete/{{ grn.id }}" onclick="return confirm('Delete this GRN? Stock and PO received quantities will be reversed.')" style="display: inline-block; margin-bottom: 20px; margin-left: 16px; color: #c1121f;">Delete</a>
+    {% endif %}
+{% endif %}
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05); margin-bottom: 24px;">
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Supplier</div>
+            <div style="font-weight: 600;">{{ grn.supplier_name or '-' }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Date</div>
+            <div style="font-weight: 600;">{{ grn.grn_date }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Against PO</div>
+            <div style="font-weight: 600;">{{ grn.order_no or '-' }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Total</div>
+            <div style="font-weight: 600;">₹{{ grn.total_amount }}</div>
+        </div>
+        <div>
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Transporter</div>
+            <div style="font-weight: 600;">{{ grn.transporter_name or '-' }}</div>
+        </div>
+        <div style="grid-column: span 4;">
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #8a8478; text-transform: uppercase;">Remarks</div>
+            <div style="font-weight: 600;">{{ grn.remarks or '-' }}</div>
+        </div>
+    </div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Quantity</th>
+            <th>Rate</th>
+            <th>HSN</th>
+            <th>Tax</th>
+            <th>Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.item_type | capitalize }}</td>
+            <td>
+                {{ item.description }}
+                {% if item.item_type == 'rod' %}
+                <div style="font-size: 12px; color: #6b6b6b;">{{ item.rod_grade or '' }} {{ item.rod_diameter_mm }}mm dia × {{ item.rod_length_mm }}mm</div>
+                {% endif %}
+            </td>
+            <td>{{ item.quantity }}</td>
+            <td>₹{{ item.rate }}</td>
+            <td>{{ item.hsn_code or '-' }}</td>
+            <td>{{ item.tax_rate }}%</td>
+            <td>₹{{ item.amount }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align: center; color: #999;">No items on this GRN</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

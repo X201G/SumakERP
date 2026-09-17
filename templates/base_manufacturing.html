@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta name="google" content="notranslate">
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{% block title %}SUMAK Manufacturing{% endblock %}</title>
+
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            }
+
+            body {
+                display: flex;
+                background: #f4f2ee;
+                min-height: 100vh;
+                color: #1a1a1a;
+            }
+
+            .sidebar {
+                display: none;
+                width: 240px;
+                background: #14213d;
+                height: 100vh;
+                position: fixed;
+                top: 0;
+                left: 0;
+                z-index: 200;
+                overflow-y: auto;
+            }
+
+            .logo-area {
+                padding: 24px 20px;
+                border-bottom: 1px solid rgba(255,255,255,0.08);
+            }
+
+            .logo-name {
+                font-size: 22px;
+                font-weight: 700;
+                color: #4c8dff;
+                letter-spacing: 2px;
+            }
+
+            .logo-sub {
+                font-size: 11px;
+                color: rgba(255,255,255,0.4);
+                letter-spacing: 1.5px;
+                margin-top: 2px;
+            }
+
+            .nav-section {
+                padding: 16px 0;
+            }
+
+            .nav-label {
+                font-size: 10px;
+                font-weight: 700;
+                color: rgba(255,255,255,0.28);
+                letter-spacing: 1.5px;
+                padding: 8px 20px;
+            }
+
+            .nav-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 20px;
+                color: rgba(255,255,255,0.62);
+                font-size: 13.5px;
+                font-weight: 500;
+                text-decoration: none;
+                border-left: 3px solid transparent;
+                transition: background 0.15s ease, color 0.15s ease;
+            }
+
+            .nav-item:hover {
+                background: rgba(255,255,255,0.06);
+                color: white;
+            }
+
+            .nav-item.active {
+                background: rgba(76,141,255,0.14);
+                color: white;
+                border-left-color: #4c8dff;
+                font-weight: 600;
+            }
+
+            .main {
+                flex: 1;
+                margin-left: 0;
+                min-height: 100vh;
+                box-sizing: border-box;
+            }
+
+            .topbar {
+                background: #ffffff;
+                box-shadow: 0 1px 2px rgba(20,33,61,0.06);
+                padding: 0 32px;
+                height: 60px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: sticky;
+                top: 0;
+                z-index: 50;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .page-title {
+                font-size: 19px;
+                font-weight: 700;
+                color: #14213d;
+                letter-spacing: -0.2px;
+            }
+
+            .user-badge {
+                background: #14213d;
+                color: white;
+                padding: 6px 14px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+
+            .content {
+                padding: 24px 28px;
+                box-sizing: border-box;
+            }
+
+            .flash-success {
+                background: #d8f3dc;
+                color: #2d6a4f;
+                border: 1px solid #b7e4c7;
+                border-radius: 8px;
+                padding: 12px 16px;
+                margin-bottom: 16px;
+                font-size: 13.5px;
+            }
+
+            .flash-danger {
+                background: #ffe0e0;
+                color: #c1121f;
+                border: 1px solid #ffb3b3;
+                border-radius: 8px;
+                padding: 12px 16px;
+                margin-bottom: 16px;
+                font-size: 13.5px;
+            }
+
+            .flash-info {
+                background: #eef2ff;
+                color: #3730a3;
+                border: 1px solid #c7d2fe;
+                border-radius: 8px;
+                padding: 12px 16px;
+                margin-bottom: 16px;
+                font-size: 13.5px;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                margin-top: 24px;
+                border: 1px solid #e5e1d8;
+                box-shadow: 0 1px 3px rgba(20,33,61,0.05);
+            }
+
+            thead th, th {
+                background: #faf9f6;
+                padding: 12px 24px;
+                text-align: left;
+                font-size: 11px;
+                font-weight: 700;
+                color: #7a7568;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                border-bottom: 1px solid #e5e1d8;
+            }
+
+            tbody tr, tr {
+                border-bottom: 1px solid #eeece5;
+                transition: background 0.1s ease;
+            }
+
+            tbody tr:last-child {
+                border-bottom: none;
+            }
+
+            tbody tr:hover, tr:hover {
+                background: #f7f6f2;
+            }
+
+            td {
+                padding: 13px 24px;
+                font-size: 13.5px;
+                color: #262421;
+            }
+
+            form {
+                background: white;
+                padding: 24px;
+                border-radius: 12px;
+                border: 1px solid #e5e1d8;
+                box-shadow: 0 1px 3px rgba(20,33,61,0.05);
+                margin-bottom: 24px;
+                display: flex;
+                gap: 14px;
+                flex-wrap: wrap;
+                align-items: flex-end;
+            }
+
+            label {
+                font-size: 11.5px;
+                font-weight: 600;
+                color: #6b6558;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+            }
+
+            input, select {
+                background: #faf9f6;
+                border: 1.5px solid #e5e1d8;
+                border-radius: 8px;
+                padding: 9px 13px;
+                font-size: 13.5px;
+                outline: none;
+                transition: border-color 0.15s ease, box-shadow 0.15s ease;
+                color: #1a1a1a;
+            }
+
+            input:focus, select:focus {
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+            }
+
+            button {
+                background: #2563eb;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px 22px;
+                font-size: 13.5px;
+                font-weight: 600;
+                cursor: pointer;
+                box-shadow: 0 1px 2px rgba(37,99,235,0.25);
+                transition: background 0.15s ease, box-shadow 0.15s ease;
+            }
+
+            button:hover {
+                background: #1d4fd1;
+                box-shadow: 0 2px 6px rgba(37,99,235,0.3);
+            }
+
+            a {
+                color: #2563eb;
+                text-decoration: none;
+                font-weight: 600;
+            }
+
+            a:hover {
+                text-decoration: underline;
+            }
+
+            .nav-toggle {
+                cursor: pointer;
+            }
+
+            .badge {
+                display: inline-block;
+                padding: 4px 11px;
+                border-radius: 20px;
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+                white-space: nowrap;
+            }
+
+            .badge-neutral { background: #ece9e2; color: #6b6558; }
+            .badge-warning { background: #fef3c7; color: #92600a; }
+            .badge-info { background: #dbeafe; color: #1d4ed8; }
+            .badge-success { background: #d8f3dc; color: #2d6a4f; }
+
+            /* Tab bar - used to switch between related pages (e.g. Purchase Orders /
+               GRN / Invoices / Returns) that used to be separate nav items. Each tab
+               is a real link to its own page/route, not a JS-toggled panel - styled
+               to look and feel like a single tabbed page even though every tab is a
+               full navigation. */
+            .tab-bar { display: inline-flex; background: white; border: 1px solid #e5e1d8; border-radius: 10px; padding: 4px; margin: 4px 0 20px; box-shadow: 0 1px 3px rgba(20,33,61,0.05); flex-wrap: wrap; }
+            .tab-btn { border: none; background: transparent; color: #6b6558; padding: 10px 22px; border-radius: 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.15s ease; box-shadow: none; text-decoration: none; display: inline-block; }
+            .tab-btn:hover { text-decoration: none; }
+            .tab-btn.active { background: #14213d; color: white; box-shadow: 0 1px 2px rgba(20,33,61,0.25); }
+            .tab-btn:hover:not(.active) { background: #f4f2ee; color: #14213d; }
+
+            .stage-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+            .stage-pill-vendor { background: #fef3c7; color: #92600a; }
+            .stage-pill-ready { background: #d8f3dc; color: #2d6a4f; }
+
+            /* Accordion - summary row that expands to reveal detail, used wherever a
+               page needs summarize-then-drill-down instead of one giant flat table. */
+            .accordion-item { background: white; border: 1px solid #e5e1d8; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(20,33,61,0.05); overflow: hidden; }
+            .accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; cursor: pointer; transition: background 0.12s ease; flex-wrap: wrap; gap: 10px; }
+            .accordion-header:hover { background: #faf9f6; }
+            .accordion-title { font-weight: 700; font-size: 14.5px; color: #14213d; }
+            .accordion-sub { font-size: 12px; color: #8a8478; margin-top: 2px; }
+            .accordion-metric { font-weight: 700; font-size: 17px; color: #14213d; }
+            .accordion-chevron { font-size: 14px; color: #8a8478; width: 20px; text-align: center; }
+            .accordion-body { border-top: 1px solid #eeece5; padding: 4px 22px 14px; }
+            .accordion-body table { box-shadow: none; border: none; margin-top: 8px; }
+            .accordion-body th, .accordion-body td { padding: 10px 14px; }
+
+            .stat-card {
+                background: white;
+                padding: 18px 20px;
+                border-radius: 12px;
+                border: 1px solid #e5e1d8;
+                box-shadow: 0 1px 3px rgba(20,33,61,0.05);
+            }
+
+            .stat-label {
+                font-size: 11px;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.4px;
+                color: #8a8478;
+                margin-bottom: 6px;
+            }
+
+            .stat-value {
+                font-size: 26px;
+                font-weight: 700;
+                color: #14213d;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="sidebar">
+            <div class="logo-area">
+                <div class="logo-name">SUMAK</div>
+                <div class="logo-sub">MANUFACTURING</div>
+            </div>
+
+            {% set in_resharpen = request.path.startswith('/manufacturing/resharpen') %}
+            {% set can_resharpen = has_perm('resharpen_batches') or has_perm('resharpen_challans') or has_perm('resharpen_invoices') or has_perm('resharpen_stock') %}
+            {% set can_masters = has_perm('mfg_rods') or has_perm('mfg_tools') or has_perm('mfg_brands') or has_perm('mfg_items') %}
+            {% set can_purchase = has_perm('mfg_purchase_orders') or has_perm('mfg_purchase_grn') or has_perm('mfg_purchase_invoices') or has_perm('mfg_purchase_returns') %}
+            {% set can_jobwork = has_perm('mfg_orders') or has_perm('mfg_batches') or has_perm('mfg_challans') or has_perm('mfg_invoices') %}
+            {% set can_stock = has_perm('mfg_stock') %}
+            {% set can_transport = has_perm('mfg_transporters') %}
+            {% set can_payments = has_perm('mfg_sales_payments') or has_perm('mfg_purchase_payments') or has_perm('mfg_outstanding') %}
+            {% set can_reports = has_perm('mfg_reports') %}
+
+            <div style="padding: 14px 16px 2px;">
+                <div style="display: flex; background: rgba(255,255,255,0.06); border-radius: 10px; padding: 3px; gap: 2px;">
+                    <a href="/manufacturing" style="flex: 1; text-align: center; padding: 8px 4px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; transition: background 0.15s ease, color 0.15s ease; {% if not in_resharpen %}background: #4c8dff; color: white;{% else %}color: rgba(255,255,255,0.55);{% endif %}">🏭 Manufacturing</a>
+                    {% if can_resharpen %}
+                    <a href="/manufacturing/resharpen/batches" style="flex: 1; text-align: center; padding: 8px 4px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; transition: background 0.15s ease, color 0.15s ease; {% if in_resharpen %}background: #4c8dff; color: white;{% else %}color: rgba(255,255,255,0.55);{% endif %}">🔄 Resharpening</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if not in_resharpen %}
+            {% if has_perm('mfg_dashboard') %}
+            <div class="nav-section">
+                <div class="nav-label">MAIN</div>
+                <a href="/manufacturing" class="nav-item {% if request.path == '/manufacturing' %}active{% endif %}">🏭 Dashboard</a>
+            </div>
+            {% endif %}
+
+            {% if can_masters %}
+            <div class="nav-section">
+                <div class="nav-label">MASTERS</div>
+                <a href="/manufacturing/rods" class="nav-item {% if request.path.startswith('/manufacturing/rods') or request.path.startswith('/manufacturing/tools') or request.path.startswith('/manufacturing/brands') or request.path.startswith('/manufacturing/items') %}active{% endif %}">🔩 Rod / Tool / Brand / Item</a>
+            </div>
+            {% endif %}
+
+            {% if can_purchase %}
+            <div class="nav-section">
+                <div class="nav-label">PURCHASE</div>
+                <a href="/manufacturing/purchase-orders" class="nav-item {% if request.path.startswith('/manufacturing/purchase-orders') or request.path.startswith('/manufacturing/purchase-grn') or request.path.startswith('/manufacturing/purchase-invoices') or request.path.startswith('/manufacturing/purchase-returns') or request.path.startswith('/manufacturing/purchase-daybook') %}active{% endif %}">🛒 Orders / GRN / Invoices / Returns</a>
+            </div>
+            {% endif %}
+
+            {% if can_jobwork %}
+            <div class="nav-section">
+                <div class="nav-label">JOB WORK</div>
+                <a href="/manufacturing/orders" class="nav-item {% if request.path.startswith('/manufacturing/orders') or request.path.startswith('/manufacturing/batches') or request.path.startswith('/manufacturing/challans') or request.path.startswith('/manufacturing/invoices') or request.path.startswith('/manufacturing/sales-daybook') %}active{% endif %}">📥 Orders / Batches / Challans / Invoices</a>
+            </div>
+            {% endif %}
+
+            {% if can_stock %}
+            <div class="nav-section">
+                <div class="nav-label">INVENTORY</div>
+                <a href="/manufacturing/stock" class="nav-item {% if request.path.startswith('/manufacturing/stock') %}active{% endif %}">📊 Tools / Raw Material / Ledger</a>
+            </div>
+            {% endif %}
+            {% else %}
+            {% if can_resharpen %}
+            <div class="nav-section">
+                <div class="nav-label">RESHARPENING</div>
+                {% if has_perm('resharpen_batches') or has_perm('resharpen_challans') or has_perm('resharpen_invoices') %}
+                <a href="/manufacturing/resharpen/batches" class="nav-item {% if request.path.startswith('/manufacturing/resharpen/batches') or request.path.startswith('/manufacturing/resharpen/challans') or request.path.startswith('/manufacturing/resharpen/invoices') %}active{% endif %}">🔄 Batches / Challans / Invoices</a>
+                {% endif %}
+                {% if has_perm('resharpen_stock') %}
+                <a href="/manufacturing/resharpen/stock" class="nav-item {% if request.path.startswith('/manufacturing/resharpen/stock') %}active{% endif %}">📊 Stock</a>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endif %}
+
+            {% if can_transport %}
+            <div class="nav-section">
+                <div class="nav-label">TRANSPORT</div>
+                <a href="/manufacturing/transporters" class="nav-item {% if request.path.startswith('/manufacturing/transporters') %}active{% endif %}">🚚 Transporters</a>
+            </div>
+            {% endif %}
+
+            {% if can_payments %}
+            <div class="nav-section">
+                <div class="nav-label">PAYMENTS</div>
+                <a href="/manufacturing/sales-payments" class="nav-item {% if request.path.startswith('/manufacturing/sales-payments') or request.path.startswith('/manufacturing/purchase-payments') or request.path.startswith('/manufacturing/outstanding') or request.path.startswith('/manufacturing/daybook') or request.path.startswith('/manufacturing/statement') %}active{% endif %}">💰 Received / Made / Outstanding / Day Book</a>
+            </div>
+            {% endif %}
+
+            {% if can_reports %}
+            <div class="nav-section">
+                <div class="nav-label">REPORTS</div>
+                <a href="/manufacturing/reports" class="nav-item {% if request.path == '/manufacturing/reports' %}active{% endif %}">📋 All Reports</a>
+                <a href="/manufacturing/reports/sales" class="nav-item {% if request.path.startswith('/manufacturing/reports/sales') %}active{% endif %}">📈 Sales Report</a>
+                {% if not in_resharpen %}
+                <a href="/manufacturing/reports/purchase" class="nav-item {% if request.path.startswith('/manufacturing/reports/purchase') %}active{% endif %}">🛒 Purchase Report</a>
+                {% endif %}
+                <a href="/manufacturing/reports/margin" class="nav-item {% if request.path.startswith('/manufacturing/reports/margin') %}active{% endif %}">💰 Margin Report</a>
+                {% if not in_resharpen %}
+                <a href="/manufacturing/reports/stock" class="nav-item {% if request.path.startswith('/manufacturing/reports/stock') %}active{% endif %}">📦 Stock Report</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if session.role == 'admin' %}
+            <div class="nav-section">
+                <div class="nav-label">ADMIN</div>
+                <a href="/manufacturing/users" class="nav-item {% if request.path.startswith('/manufacturing/users') %}active{% endif %}">👤 Users &amp; Permissions</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="main">
+            <div class="topbar">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button onclick="toggleSidebar()" style="background: none; border: none; box-shadow: none; font-size: 24px; cursor: pointer; color: #14213d; padding: 0;">☰</button>
+                <div class="page-title">{% block page_title %}SUMAK Manufacturing{% endblock %}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="user-badge">🏭 {{ session.full_name }}</div>
+                    <a href="/logout" style="background: #14213d; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; text-decoration: none;">Logout</a>
+                </div>
+            </div>
+
+            <div class="content">
+                <div id="flash-messages">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                {% if category == "success" %}
+                                    <p class="flash-success">{{ message }}</p>
+                                {% elif category == "info" %}
+                                    <p class="flash-info">{{ message }}</p>
+                                {% else %}
+                                    <p class="flash-danger">{{ message }}</p>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+
+        <script>
+            setTimeout(function() {
+                var messages = document.getElementById("flash-messages");
+                if (messages) {
+                    messages.style.display = "none";
+                }
+            }, 3000);
+        </script>
+
+        <script>
+            function toggleSidebar() {
+                var sidebar = document.querySelector(".sidebar");
+                var main = document.querySelector(".main");
+                var isHidden = window.getComputedStyle(sidebar).display === "none";
+                if (isHidden) {
+                    sidebar.style.display = "block";
+                    main.style.marginLeft = "240px";
+                } else {
+                    sidebar.style.display = "none";
+                    main.style.marginLeft = "0";
+                }
+            }
+        </script>
+
+        <!-- Shared half-page picker drawer, used across Manufacturing for every
+             Tool/Rod/Item selection instead of a plain dropdown - one instance per
+             page, retargeted per call via openPickerDrawer(). -->
+        <div id="pickerOverlay" onclick="closePickerDrawer()" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 9998;"></div>
+        <div id="pickerDrawer" style="display: none; flex-direction: column; position: fixed; bottom: 0; left: 0; width: 100%; height: 65%; background: white; z-index: 9999; border-radius: 16px 16px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
+            <div style="padding: 20px; border-bottom: 1px solid #e0ddd8; display: flex; gap: 12px; align-items: center;">
+                <input type="text" id="pickerSearch" placeholder="Search..." autocomplete="off" oninput="filterPickerDrawer()" style="flex: 1; padding: 12px 16px; border: 1.5px solid #e0ddd8; border-radius: 8px; font-size: 15px;">
+                <button type="button" onclick="closePickerDrawer()" style="background: #14213d; color: white; border: none; border-radius: 8px; padding: 12px 20px; cursor: pointer; font-weight: 600;">✕ Close</button>
+            </div>
+            <div style="overflow-y: auto; flex: 1; padding: 0 20px;">
+                <table style="width: 100%;">
+                    <thead id="pickerHead" style="position: sticky; top: 0; background: white;"></thead>
+                    <tbody id="pickerBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <script>
+            let __pickerData = [];
+            let __pickerColumns = [];
+            let __pickerSearchKeys = [];
+            let __pickerOnSelect = null;
+
+            // columns: [{label: 'Item Code', value: item => item.code}, ...]
+            // searchKeys: array of item keys (or functions) to match the search box against
+            function openPickerDrawer(data, columns, searchKeys, onSelect, placeholder) {
+                __pickerData = data;
+                __pickerColumns = columns;
+                __pickerSearchKeys = searchKeys;
+                __pickerOnSelect = onSelect;
+                document.getElementById('pickerOverlay').style.display = 'block';
+                document.getElementById('pickerDrawer').style.display = 'flex';
+                const search = document.getElementById('pickerSearch');
+                search.value = '';
+                search.placeholder = placeholder || 'Search...';
+                document.getElementById('pickerHead').innerHTML = '<tr>' + columns.map(c => '<th>' + c.label + '</th>').join('') + '</tr>';
+                renderPickerRows(data);
+                search.focus();
+            }
+
+            function closePickerDrawer() {
+                document.getElementById('pickerOverlay').style.display = 'none';
+                document.getElementById('pickerDrawer').style.display = 'none';
+            }
+
+            function renderPickerRows(list) {
+                const tbody = document.getElementById('pickerBody');
+                tbody.innerHTML = '';
+                if (list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="' + __pickerColumns.length + '" style="padding: 20px; text-align: center; color: #999;">No matches</td></tr>';
+                    return;
+                }
+                list.forEach(function(item) {
+                    const row = document.createElement('tr');
+                    row.style.cursor = 'pointer';
+                    row.onmouseover = function() { row.style.background = '#f5f3ef'; };
+                    row.onmouseout = function() { row.style.background = 'white'; };
+                    row.innerHTML = __pickerColumns.map(c => '<td>' + c.value(item) + '</td>').join('');
+                    row.onclick = function() { __pickerOnSelect(item); closePickerDrawer(); };
+                    tbody.appendChild(row);
+                });
+            }
+
+            function filterPickerDrawer() {
+                const q = document.getElementById('pickerSearch').value.trim().toLowerCase();
+                if (!q) { renderPickerRows(__pickerData); return; }
+                const filtered = __pickerData.filter(item => __pickerSearchKeys.some(function(k) {
+                    const v = typeof k === 'function' ? k(item) : item[k];
+                    return String(v || '').toLowerCase().includes(q);
+                }));
+                renderPickerRows(filtered);
+            }
+        </script>
+    </body>
+
+</html>

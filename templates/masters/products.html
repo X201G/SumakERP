@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Product Master - SUMAK ERP{% endblock %}
+
+{% block page_title %}Product Master{% endblock %}
+
+{% block content %}
+        
+        <form method="POST" action="/products/add">
+            <input type="text" name="product_name" placeholder="Enter Product name">
+            <input type="text" name="print_description" placeholder="Enter Print Description">
+            <select name="category_id">
+                <option value="">-- Select Category --</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.category_name }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="subcategory_id">
+                <option value="">-- Select Subcategory --</option>
+                {% for subcategory in subcategories %}
+                <option value="{{ subcategory.id }}">{{ subcategory.subcategory_name }}</option>
+                {% endfor %}
+            </select>
+            
+            <select name="unit_id">
+                <option value="">-- Select Unit --</option>
+                {% for unit in units %}
+                <option value="{{ unit.id }}">{{ unit.unit_name }}</option>
+                {% endfor %}
+            </select>
+            
+            <select name="hsn_id">
+                <option value="">-- Select HSN --</option>
+                {% for hsn in hsns %}
+                <option value="{{ hsn.id }}">{{ hsn.hsn_code }}</option>
+                {% endfor %}
+            </select>
+            <input type="number" name="tax_rate" placeholder="Enter GST">
+            <select name="supplier_id">
+                <option value="">-- Select Supplier --</option>
+                {% for supplier in suppliers %}
+                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="text" name="purchase_price" placeholder="Enter Purchase Price">
+            <input type="number" name="purchase_discount" placeholder="Enter Discount">
+            <input type="text" name="sale_price" placeholder="Enter Sale Price">
+            <input type="number" name="sale_discount" placeholder="Enter Discount">
+            <button type="submit">Save</button>
+        </form>
+
+        <input type="text" id="searchInput" placeholder="Search Products...">
+
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Unit</th>
+                <th>Purchase Price</th>
+                <th>Sale Price</th>
+                <th>Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.id }}</td>
+                <td>{{ product.product_name }}</td>
+                <td>{{ product.category_name }}</td>
+                <td>{{ product.unit_name }}</td>
+                <td>{{ product.purchase_price }}</td>
+                <td>{{ product.sale_price }}</td>
+                <td><a href="/products/delete/{{ product.id }}">Delete</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+            {% if page > 1 %}
+            <a href="/products?page={{ page - 1 }}" style="background:#1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+            {% endif %}
+
+            <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+                Page {{ page }} of {{ total_pages }}
+            </span>
+
+            {% if page < total_pages %}
+            <a href="/products?page={{ page + 1 }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+            {% endif %}
+        </div>
+        <script>
+                document.getElementById("searchInput").addEventListener("keyup", function() {
+            var input = this.value.toLowerCase();
+            var rows = document.querySelectorAll("table tbody tr");
+            rows.forEach(function(row) {
+                var text = row.innerText.toLowerCase();
+                if (text.includes(input)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        });
+        </script>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Item - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Item{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/manufacturing/items/edit/{{ item.id }}">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Item Name</label>
+        <input type="text" name="item_name" value="{{ item.item_name }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Category</label>
+        <select name="category_id" style="min-width: 200px;">
+            <option value="">-- No Category --</option>
+            {% for c in categories %}
+            <option value="{{ c.id }}" {% if item.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+        </select>
+        <small style="color: #6b6b6b;"><a href="/manufacturing/item-categories/add">+ Add a new category</a></small>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Unit</label>
+        <select name="unit_id" style="min-width: 160px;">
+            <option value="">-- No Unit --</option>
+            {% for u in units %}
+            <option value="{{ u.id }}" {% if item.unit_id == u.id %}selected{% endif %}>{{ u.unit_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>HSN Code</label>
+        <input type="text" name="hsn_code" value="{{ item.hsn_code or '' }}" placeholder="e.g. 6804">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tax Rate (%)</label>
+        <input type="number" step="0.01" name="tax_rate" value="{{ item.tax_rate }}">
+    </div>
+
+    <div style="width: 100%; background: #faf9f6; border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px;">
+        <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b6558; margin-bottom: 12px;">Purchase Pricing</div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap: 14px; max-width: 560px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Purchase Price (₹)</label>
+                <input type="number" step="0.01" name="purchase_price" id="purchase_price" value="{{ item.purchase_price }}" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Discount (%)</label>
+                <input type="number" step="0.01" name="purchase_discount_percent" id="purchase_discount_percent" value="{{ item.purchase_discount_percent or 0 }}" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Final Price (₹)</label>
+                <input type="text" id="final_purchase_price" readonly tabindex="-1" style="background: #eef6ff; border-color: #b8d8f5; font-weight: 700;">
+            </div>
+        </div>
+        <small style="color: #6b6b6b; display: block; margin-top: 10px;">Suggested rate when adding this item to a Purchase Order/GRN/Purchase Invoice.</small>
+    </div>
+
+    <div style="width: 100%; background: #faf9f6; border: 1px solid #e5e1d8; border-radius: 10px; padding: 16px;">
+        <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; color: #6b6558; margin-bottom: 12px;">Sales Pricing (optional)</div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap: 14px; max-width: 560px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Sales Price (₹)</label>
+                <input type="number" step="0.01" name="sales_price" id="sales_price" value="{{ item.sales_price or '' }}" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Discount (%)</label>
+                <input type="number" step="0.01" name="sales_discount_percent" id="sales_discount_percent" value="{{ item.sales_discount_percent or 0 }}" oninput="recalcPricing()">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label>Final Price (₹)</label>
+                <input type="text" id="final_sales_price" readonly tabindex="-1" style="background: #eef6ff; border-color: #b8d8f5; font-weight: 700;">
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <label>Print Description</label>
+        <input type="text" name="print_description" value="{{ item.print_description or '' }}" placeholder="How this should appear on printed purchase documents">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+        <label>Remarks</label>
+        <input type="text" name="remarks" value="{{ item.remarks or '' }}">
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+<script>
+    function recalcPricing() {
+        var pp = parseFloat(document.getElementById('purchase_price').value) || 0;
+        var pd = parseFloat(document.getElementById('purchase_discount_percent').value) || 0;
+        document.getElementById('final_purchase_price').value = (pp * (1 - pd / 100)).toFixed(2);
+        var sp = parseFloat(document.getElementById('sales_price').value) || 0;
+        var sd = parseFloat(document.getElementById('sales_discount_percent').value) || 0;
+        document.getElementById('final_sales_price').value = (sp * (1 - sd / 100)).toFixed(2);
+    }
+    recalcPricing();
+</script>
+
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Returns - SUMAK ERP{% endblock %}
+
+{% block page_title %}Purchase Returns{% endblock %}
+
+{% block content %}
+
+<a href="/purchase-returns/add" style="background: #e85d04; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600;">+ New Return</a>
+<input type="text" id="searchInput" placeholder="Search Returns...">
+
+<table>
+    <thead>
+        <tr>
+            <th>Return No</th>
+            <th>Date</th>
+            <th>Supplier</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for ret in returns %}
+        <tr>
+            <td>{{ ret.return_no }}</td>
+            <td>{{ ret.return_date }}</td>
+            <td>{{ ret.supplier_name }}</td>
+            <td>{{ ret.total_amount }}</td>
+            <td>{{ ret.status }}</td>
+            <td>
+                <a href="/purchase-returns/view/{{ ret.id }}">View</a> |
+                <a href="/purchase-returns/delete/{{ ret.id }}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/purchase-returns?page={{ page - 1 }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/purchase-returns?page={{ page + 1 }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+<script>
+document.getElementById("searchInput").addEventListener("keyup", function() {
+    var input = this.value.toLowerCase();
+    var rows = document.querySelectorAll("table tbody tr");
+    rows.forEach(function(row) {
+        var text = row.innerText.toLowerCase();
+        if (text.includes(input)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+    });
+});
+</script>
+
+{% endblock %}

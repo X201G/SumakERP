@@ -1,0 +1,66 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Dashboard - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div class="stat-card">
+        <div class="stat-label">Total Batches</div>
+        <div class="stat-value">{{ total_batches }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">At Vendor</div>
+        <div class="stat-value" style="color: #b45309;">{{ pending_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Completed</div>
+        <div class="stat-value" style="color: #2d6a4f;">{{ complete_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Rods in Stock</div>
+        <div class="stat-value">{{ total_rods }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Tools</div>
+        <div class="stat-value">{{ total_tools }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Challans</div>
+        <div class="stat-value">{{ total_challans }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Invoices</div>
+        <div class="stat-value">{{ total_invoices }}</div>
+    </div>
+</div>
+
+<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+    <h3 style="margin-bottom: 16px; color: #14213d;">Recent Batches</h3>
+    <table style="margin-top: 0; box-shadow: none; border: 1px solid #eeece5;">
+        <thead>
+            <tr>
+                <th>Batch No</th>
+                <th>Date</th>
+                <th>Tool</th>
+                <th>Customer</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in recent_batches %}
+            <tr>
+                <td><a href="/manufacturing/batches/{{ b.id }}">{{ b.batch_no }}</a></td>
+                <td>{{ b.batch_date }}</td>
+                <td>{{ b.tool_name }}</td>
+                <td>{{ b.customer_name or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" style="text-align: center; color: #999;">No batches yet</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

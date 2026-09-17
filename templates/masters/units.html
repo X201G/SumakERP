@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Unit Master - SUMAK ERP{% endblock %}
+
+{% block page_title %}Unit Master{% endblock %}
+
+{% block content %}
+        
+
+        {% if editing %}
+        <form method="POST" action="/units/edit/{{ unit.id }}">
+            <input type="text" name="unit_name" value="{{ unit.unit_name }}">
+            <button type="submit">Update</button>
+            <a href="/units" style="padding: 10px 16px; background: #6b6b6b; color: white; border-radius: 8px;">Cancel</a>
+        </form>
+        {% else %}
+        <form method="POST" action="/units/add">
+            <input type="text" name="unit_name" placeholder="Enter unit name">
+            <button type="submit">Save</button>
+        </form>
+        {% endif %}
+
+        <input type="text" id="searchInput" placeholder="Search Units...">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Unit Name</th>
+                    <th>Created At</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for unit in units %}
+                <tr>
+                    <td>{{ unit.id }}</td>
+                    <td>{{ unit.unit_name }}</td>
+                    <td>{{ unit.created_at }}</td>
+                    <td>
+                        <a href="/units/edit/{{ unit.id }}">Edit</a> |
+                        <a href="/units/delete/{{ unit.id }}">Delete</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <script>
+        document.getElementById("searchInput").addEventListener("keyup", function() {
+            var input = this.value.toLowerCase();
+            var rows = document.querySelectorAll("table tbody tr");
+            rows.forEach(function(row) {
+                var text = row.innerText.toLowerCase();
+                if (text.includes(input)) {
+                    row.style.display = "";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        });
+        </script>
+{% endblock %}

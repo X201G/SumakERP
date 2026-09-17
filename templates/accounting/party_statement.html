@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}{{ party_name }} - Statement - SUMAK ERP{% endblock %}
+
+{% block page_title %}Statement: {{ party_name }}{% endblock %}
+
+{% block content %}
+
+<div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 16px 24px; min-width: 180px;">
+        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">{{ 'Total Billed' if party_type == 'payable' else 'Total Invoiced' }}</div>
+        <div style="font-size: 22px; font-weight: 700;">{{ total_debit }}</div>
+    </div>
+    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 16px 24px; min-width: 180px;">
+        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Total Paid</div>
+        <div style="font-size: 22px; font-weight: 700;">{{ total_credit }}</div>
+    </div>
+    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 16px 24px; min-width: 180px;">
+        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Closing Balance</div>
+        <div style="font-size: 22px; font-weight: 700; color: #c1121f;">{{ closing_balance }}</div>
+    </div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Reference</th>
+            <th>Debit</th>
+            <th>Credit</th>
+            <th>Balance</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in entries %}
+        <tr>
+            <td>{{ e.date }}</td>
+            <td>{{ e.type }}</td>
+            <td>{{ e.reference }}</td>
+            <td>{{ e.debit if e.debit else "" }}</td>
+            <td>{{ e.credit if e.credit else "" }}</td>
+            <td style="font-weight: 600;">{{ e.balance }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align: center; color: #999;">No transactions yet</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/statement/{{ party_type }}/{{ party_id }}?page={{ page - 1 }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/statement/{{ party_type }}/{{ party_id }}?page={{ page + 1 }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+{% endblock %}

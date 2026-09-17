@@ -1,0 +1,28 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Add Brand - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Add Brand{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/manufacturing/brands/add">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Product Type</label>
+        <select name="tool_type" required>
+            <option value="">-- Select Type --</option>
+            {% for t in tool_types %}
+            <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Brand Name</label>
+        <input type="text" name="name" placeholder="e.g. Sandvik, Typhon" required>
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}

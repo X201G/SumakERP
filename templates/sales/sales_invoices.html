@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Sales Invoices - SUMAK ERP{% endblock %}
+
+{% block page_title %}Sales Invoices{% endblock %}
+
+{% block content %}
+
+<a href="/sales-invoices/add" style="background: #e85d04; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; margin: 16px;">+ New Sales Invoice</a>
+
+<form method="GET" action="/sales-invoices" style="display:flex; gap:12px; flex-wrap:wrap; align-items:end; margin-bottom:16px;" id="searchForm">
+    <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:13px; color:#6b6b6b;">Search</label>
+        <input type="text" name="search" value="{{ search }}" placeholder="Search invoices..." style="padding: 10px 14px;" id="searchBox" autocomplete="off" autofocus>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:13px; color:#6b6b6b;">Status</label>
+        <select name="status" onchange="this.form.submit()">
+            <option value="">All</option>
+            <option value="paid" {% if status_filter == "paid" %}selected{% endif %}>Paid</option>
+            <option value="unpaid" {% if status_filter == "unpaid" %}selected{% endif %}>Unpaid</option>
+        </select>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:13px; color:#6b6b6b;">From Date</label>
+        <input type="date" name="from_date" value="{{ from_date }}" onchange="this.form.submit()">
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:13px; color:#6b6b6b;">To Date</label>
+        <input type="date" name="to_date" value="{{ to_date }}" onchange="this.form.submit()">
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:4px;">
+        <label style="font-size:13px; color:#6b6b6b;">Sort by</label>
+        <select name="sort" onchange="this.form.submit()">
+            <option value="date_desc" {% if sort_by == "date_desc" %}selected{% endif %}>Date: Newest</option>
+            <option value="date_asc" {% if sort_by == "date_asc" %}selected{% endif %}>Date: Oldest</option>
+            <option value="amount_desc" {% if sort_by == "amount_desc" %}selected{% endif %}>Amount: High</option>
+            <option value="amount_asc" {% if sort_by == "amount_asc" %}selected{% endif %}>Amount: Low</option>
+        </select>
+    </div>
+</form>
+
+{% if search or status_filter or from_date or to_date or sort_by != "date_desc" %}
+<a href="/sales-invoices" style="display:inline-block; margin-bottom:16px; color:#e85d04;">✕ Clear All Filters</a>
+{% endif %}
+
+<table>
+    <thead>
+        <tr>
+            <th>Invoice No</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>PO No</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for invoice in invoices %}
+        <tr>
+            <td>{{ invoice.invoice_no }}</td>
+            <td>{{ invoice.invoice_date }}</td>
+            <td>{{ invoice.customer_name }}</td>
+            <td>{{ invoice.po_no }}</td>
+            <td>{{ invoice.total_amount }}</td>
+            <td>{{ invoice.status }}</td>
+            <td>
+                <a href="/sales-invoices/view/{{ invoice.id }}">View</a> |
+                <a href="/sales-invoices/delete/{{ invoice.id }}">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="display: flex; gap: 8px; margin-top: 16px; align-items: center;">
+    {% if page > 1 %}
+    <a href="/sales-invoices?page={{ page - 1 }}&search={{ search }}&status={{ status_filter }}&from_date={{ from_date }}&to_date={{ to_date }}&sort={{ sort_by }}" style="background: #1a1a2e; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">← Previous</a>
+    {% endif %}
+    <span style="padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e0ddd8;">
+        Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if page < total_pages %}
+    <a href="/sales-invoices?page={{ page + 1 }}&search={{ search }}&status={{ status_filter }}&from_date={{ from_date}}&to_date={{ to_date }}&sort={{ sort_by }}" style="background: #e85d04; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none;">Next →</a>
+    {% endif %}
+</div>
+
+<script>
+    var searchBox = document.getElementById("searchBox");
+    var timer;
+    
+    var val = searchBox.value;
+    searchBox.value="";
+    searchBox.value= val;
+
+    searchBox.addEventListener("input", function() {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+            document.getElementById("searchForm").submit();
+        }, 300);
+    });
+</script>
+
+{% endblock %}

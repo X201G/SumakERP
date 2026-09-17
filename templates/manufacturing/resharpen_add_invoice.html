@@ -1,0 +1,51 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}New Resharpen Invoice - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}New Resharpen Invoice{% endblock %}
+
+{% block content %}
+
+<div style="background: white; padding: 16px 24px; border-radius: 12px; border: 1px solid #e0ddd8; margin-bottom: 16px;">
+    <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase;">Batch</div>
+    <div style="font-weight: 600;">{{ batch.batch_no }} — {{ batch.tool_name }} — to {{ batch.customer_name }}</div>
+    {% if last_price %}
+    <div style="font-size: 12px; color: #6b6b6b; margin-top: 6px;">Last resharpening price charged to this customer for this tool: ₹{{ last_price }}</div>
+    {% endif %}
+</div>
+
+<form method="POST" action="/manufacturing/resharpen/batches/{{ batch.id }}/invoice/new">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Date</label>
+        <input type="date" name="invoice_date" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Quantity</label>
+        <input type="number" name="quantity" value="{{ batch.quantity }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Rate (₹ per piece)</label>
+        <input type="number" step="0.01" name="rate" value="{{ last_price or '' }}" required>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Tax Rate (%)</label>
+        <input type="number" step="0.01" name="tax_rate" value="18">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Credit Days</label>
+        <input type="number" name="cr_days" value="0" style="width: 100px;">
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Remarks</label>
+        <input type="text" name="remarks">
+    </div>
+
+    <button type="submit">Create Invoice</button>
+</form>
+
+{% endblock %}

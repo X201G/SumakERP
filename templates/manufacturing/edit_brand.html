@@ -1,0 +1,28 @@
+{% extends "base_manufacturing.html" %}
+
+{% block title %}Edit Brand - SUMAK Manufacturing{% endblock %}
+
+{% block page_title %}Edit Brand{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/manufacturing/brands/edit/{{ brand.id }}">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Product Type</label>
+        <select name="tool_type" required>
+            <option value="">-- Select Type --</option>
+            {% for t in tool_types %}
+            <option value="{{ t }}" {% if brand.tool_type == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Brand Name</label>
+        <input type="text" name="name" value="{{ brand.name or '' }}" required>
+    </div>
+
+    <button type="submit">Save</button>
+</form>
+
+{% endblock %}
