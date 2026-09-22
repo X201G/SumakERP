@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, redirect, render_template, request, session, url_for
 from database import create_tables, get_connection
 from modules.auth import auth, system_required
 
@@ -47,6 +47,37 @@ def index():
         total_suppliers=total_suppliers,
         total_sales_invoices=total_sales_invoices,
         total_purchase_orders=total_purchase_orders)
+
+
+@app.route("/flow")
+def flow():
+    if not session.get("user_id"):
+        return redirect(url_for("auth.login", next=request.path))
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    counts = {
+        "leads": 0,
+        "leads_not_converted": 0,
+        "orders": 0,
+        "pre_production": 0,
+        "production": 0,
+        "post_production": 0,
+        "packaging": 0,
+        "delivery": 0,
+    }
+    for stage, table in (
+        ("orders", "mfg_customer_orders"),
+        ("pre_production", "mfg_job_batches"),
+        ("production", "mfg_job_stages"),
+        ("post_production", "mfg_challans"),
+    ):
+        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+        counts[stage] = cursor.fetchone()[0]
+    conn.close()
+
+    return render_template("flow.html", counts=counts)
 
 if __name__ == "__main__":
     create_tables()

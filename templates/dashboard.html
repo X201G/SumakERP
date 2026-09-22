@@ -2,36 +2,92 @@
 {% block title %}Dashboard - SUMAK ERP{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 {% block content %}
+<style>
+    .dashboard-stat {
+        background: white;
+        border: 1px solid #e0ddd8;
+        border-radius: 12px;
+        padding: 20px 24px;
+        min-width: 180px;
+        box-sizing: border-box;
+        display: block;
+        text-decoration: none;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .dashboard-stat:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(20, 33, 61, 0.12);
+    }
+
+    .dashboard-stat-label {
+        font-size: 12px;
+        color: #6b6b6b;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .dashboard-stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a1a1a;
+    }
+
+    .dashboard-link {
+        background: white;
+        border: 1px solid #e0ddd8;
+        border-radius: 10px;
+        padding: 14px 20px;
+        color: #1a1a1a;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    body[data-theme="dark"] .dashboard-stat,
+    body[data-theme="dark"] .dashboard-link {
+        background: #24314d !important;
+        border-color: rgba(88, 144, 203, 0.3);
+        color: #edf3ff !important;
+    }
+
+    body[data-theme="dark"] .dashboard-stat-label,
+    body[data-theme="dark"] .dashboard-stat-value,
+    body[data-theme="dark"] .dashboard-link {
+        color: #edf3ff !important;
+    }
+</style>
+
 <h2 style="margin-bottom: 20px;">Welcome to SUMAK ERP</h2>
 
 <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;">
-    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 20px 24px; min-width: 180px;">
-        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Products</div>
-        <div style="font-size: 28px; font-weight: 700; color: #1a1a1a;">{{ total_products }}</div>
-    </div>
-    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 20px 24px; min-width: 180px;">
-        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Customers</div>
-        <div style="font-size: 28px; font-weight: 700; color: #1a1a1a;">{{ total_customers }}</div>
-    </div>
-    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 20px 24px; min-width: 180px;">
-        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Suppliers</div>
-        <div style="font-size: 28px; font-weight: 700; color: #1a1a1a;">{{ total_suppliers }}</div>
-    </div>
-    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 20px 24px; min-width: 180px;">
-        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Sales Invoices</div>
-        <div style="font-size: 28px; font-weight: 700; color: #1a1a1a;">{{ total_sales_invoices }}</div>
-    </div>
-    <div style="background: white; border: 1px solid #e0ddd8; border-radius: 12px; padding: 20px 24px; min-width: 180px;">
-        <div style="font-size: 12px; color: #6b6b6b; text-transform: uppercase; margin-bottom: 8px;">Purchase Orders</div>
-        <div style="font-size: 28px; font-weight: 700; color: #1a1a1a;">{{ total_purchase_orders }}</div>
-    </div>
+    <a href="/products" class="dashboard-stat">
+        <div class="dashboard-stat-label">Products</div>
+        <div class="dashboard-stat-value">{{ total_products }}</div>
+    </a>
+    <a href="/customers" class="dashboard-stat">
+        <div class="dashboard-stat-label">Customers</div>
+        <div class="dashboard-stat-value">{{ total_customers }}</div>
+    </a>
+    <a href="/suppliers" class="dashboard-stat">
+        <div class="dashboard-stat-label">Suppliers</div>
+        <div class="dashboard-stat-value">{{ total_suppliers }}</div>
+    </a>
+    <a href="/sales-invoices" class="dashboard-stat">
+        <div class="dashboard-stat-label">Sales Invoices</div>
+        <div class="dashboard-stat-value">{{ total_sales_invoices }}</div>
+    </a>
+    <a href="/purchase-orders" class="dashboard-stat">
+        <div class="dashboard-stat-label">Purchase Orders</div>
+        <div class="dashboard-stat-value">{{ total_purchase_orders }}</div>
+    </a>
 </div>
 
 <h3 style="margin-bottom: 12px;">Quick Links</h3>
 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-    <a href="/products" style="background: white; border: 1px solid #e0ddd8; border-radius: 10px; padding: 14px 20px; color: #1a1a1a; font-weight: 600;">🔧 Products</a>
-    <a href="/sales-invoices" style="background: white; border: 1px solid #e0ddd8; border-radius: 10px; padding: 14px 20px; color: #1a1a1a; font-weight: 600;">🧾 Sales Invoices</a>
-    <a href="/purchase-orders" style="background: white; border: 1px solid #e0ddd8; border-radius: 10px; padding: 14px 20px; color: #1a1a1a; font-weight: 600;">📋 Purchase Orders</a>
-    <a href="/stock" style="background: white; border: 1px solid #e0ddd8; border-radius: 10px; padding: 14px 20px; color: #1a1a1a; font-weight: 600;">📦 Stock</a>
+    <a href="/products" class="dashboard-link">🔧 Products</a>
+    <a href="/sales-invoices" class="dashboard-link">🧾 Sales Invoices</a>
+    <a href="/purchase-orders" class="dashboard-link">📋 Purchase Orders</a>
+    <a href="/stock" class="dashboard-link">📦 Stock</a>
 </div>
 {% endblock %}

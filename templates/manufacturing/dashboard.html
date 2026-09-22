@@ -5,39 +5,64 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
+<style>
+    body[data-theme="dark"] .recent-batches-panel,
+    body[data-theme="dark"] .recent-batches-panel table,
+    body[data-theme="dark"] .recent-batches-panel th,
+    body[data-theme="dark"] .recent-batches-panel td,
+    body[data-theme="dark"] .recent-batches-panel h3 {
+        background: #24314d !important;
+        border-color: rgba(88, 144, 203, 0.3) !important;
+        color: #edf3ff !important;
+    }
+
+    .dashboard-stat-link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .dashboard-stat-link:hover {
+        color: inherit;
+        text-decoration: none;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(20, 33, 61, 0.12);
+    }
+</style>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px;">
-    <div class="stat-card">
+    <a href="/manufacturing/batches" class="stat-card dashboard-stat-link">
         <div class="stat-label">Total Batches</div>
         <div class="stat-value">{{ total_batches }}</div>
-    </div>
-    <div class="stat-card">
+    </a>
+    <a href="/manufacturing/batches" class="stat-card dashboard-stat-link">
         <div class="stat-label">At Vendor</div>
         <div class="stat-value" style="color: #b45309;">{{ pending_count }}</div>
-    </div>
-    <div class="stat-card">
+    </a>
+    <a href="/manufacturing/batches" class="stat-card dashboard-stat-link">
         <div class="stat-label">Completed</div>
         <div class="stat-value" style="color: #2d6a4f;">{{ complete_count }}</div>
-    </div>
-    <div class="stat-card">
+    </a>
+    <a href="/manufacturing/rods" class="stat-card dashboard-stat-link">
         <div class="stat-label">Rods in Stock</div>
         <div class="stat-value">{{ total_rods }}</div>
-    </div>
-    <div class="stat-card">
+    </a>
+    <a href="/manufacturing/tools" class="stat-card dashboard-stat-link">
         <div class="stat-label">Tools</div>
         <div class="stat-value">{{ total_tools }}</div>
-    </div>
-    <div class="stat-card">
+    </a>
+    <a href="/manufacturing/challans" class="stat-card dashboard-stat-link">
         <div class="stat-label">Challans</div>
         <div class="stat-value">{{ total_challans }}</div>
-    </div>
-    <div class="stat-card">
+    </a>
+    <a href="/manufacturing/invoices" class="stat-card dashboard-stat-link">
         <div class="stat-label">Invoices</div>
         <div class="stat-value">{{ total_invoices }}</div>
-    </div>
+    </a>
 </div>
 
-<div style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
+<div class="recent-batches-panel" style="background: white; padding: 24px; border-radius: 12px; border: 1px solid #e5e1d8; box-shadow: 0 1px 3px rgba(20,33,61,0.05);">
     <h3 style="margin-bottom: 16px; color: #14213d;">Recent Batches</h3>
     <table style="margin-top: 0; box-shadow: none; border: 1px solid #eeece5;">
         <thead>

@@ -131,12 +131,13 @@ def logout():
 @auth.route("/users")
 @roles_required("admin")
 def users_list():
+    system = session.get("system", "distribution")
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users ORDER BY username")
+    cursor.execute("SELECT * FROM users WHERE system = ? ORDER BY username", (system,))
     users = cursor.fetchall()
     conn.close()
-    return render_template("auth/users.html", users=users, roles=ROLES)
+    return render_template("auth/users.html", users=users, roles=ROLES, system=system)
 
 @auth.route("/users/add", methods=["GET", "POST"])
 @roles_required("admin")
@@ -146,12 +147,13 @@ def add_user():
         full_name = request.form.get("full_name")
         role = request.form.get("role") or "staff"
         password = request.form["password"]
+        system = session.get("system", "distribution")
         conn = get_connection()
         cursor = conn.cursor()
         try:
             cursor.execute(
-                "INSERT INTO users (username, password_hash, full_name, role) VALUES (?,?,?,?)",
-                (username, generate_password_hash(password), full_name, role)
+                "INSERT INTO users (username, password_hash, full_name, role, system) VALUES (?,?,?,?,?)",
+                (username, generate_password_hash(password), full_name, role, system)
             )
             conn.commit()
             flash("User added successfully!", "success")
@@ -159,11 +161,12 @@ def add_user():
             flash("That username is already taken.", "danger")
         conn.close()
         return redirect(url_for("auth.users_list"))
-    return render_template("auth/users.html", users=[], roles=ROLES)
+    return render_template("auth/users.html", users=[], roles=ROLES, system=session.get("system", "distribution"))
 
 @auth.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
 @roles_required("admin")
 def edit_user(user_id):
+    system = session.get("system", "distribution")
     conn = get_connection()
     cursor = conn.cursor()
     if request.method == "POST":
@@ -173,22 +176,25 @@ def edit_user(user_id):
         password = request.form.get("password")
         if password:
             cursor.execute(
-                "UPDATE users SET full_name=?, role=?, is_active=?, password_hash=? WHERE id=?",
-                (full_name, role, is_active, generate_password_hash(password), user_id)
+                "UPDATE users SET full_name=?, role=?, is_active=?, password_hash=? WHERE id=? AND system=?",
+                (full_name, role, is_active, generate_password_hash(password), user_id, system)
             )
         else:
             cursor.execute(
-                "UPDATE users SET full_name=?, role=?, is_active=? WHERE id=?",
-                (full_name, role, is_active, user_id)
+                "UPDATE users SET full_name=?, role=?, is_active=? WHERE id=? AND system=?",
+                (full_name, role, is_active, user_id, system)
             )
         conn.commit()
         conn.close()
         flash("User updated successfully!", "success")
         return redirect(url_for("auth.users_list"))
-    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT * FROM users WHERE id = ? AND system = ?", (user_id, system))
     user = cursor.fetchone()
     conn.close()
-    return render_template("auth/users.html", users=[], user=user, roles=ROLES, editing=True)
+    if not user:
+        flash("User not found.", "danger")
+        return redirect(url_for("auth.users_list"))
+    return render_template("auth/users.html", users=[], user=user, roles=ROLES, editing=True, system=system)
 
 @auth.route("/users/delete/<int:user_id>")
 @roles_required("admin")
@@ -196,9 +202,10 @@ def delete_user(user_id):
     if user_id == session.get("user_id"):
         flash("You can't delete your own account while logged in.", "danger")
         return redirect(url_for("auth.users_list"))
+    system = session.get("system", "distribution")
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    cursor.execute("DELETE FROM users WHERE id = ? AND system = ?", (user_id, system))
     conn.commit()
     conn.close()
     flash("User deleted successfully!", "danger")

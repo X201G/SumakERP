@@ -7,6 +7,86 @@
         <title>{% block title %}SUMAK ERP{% endblock %}</title>
 
         <style>
+            :root {
+                --theme-primary: #3E445C;
+                --theme-secondary: #424A69;
+                --theme-tertiary: #4A628A;
+                --theme-accent: #5890CB;
+                --theme-surface: #f5f3ef;
+                --theme-surface-strong: #edf3fb;
+                --theme-card: #ffffff;
+                --theme-border: rgba(62, 68, 92, 0.15);
+                --theme-text: #1a1a1a;
+                --theme-text-soft: #6b6b6b;
+                --theme-white: #ffffff;
+                --theme-hover: rgba(88, 144, 203, 0.08);
+            }
+
+            body[data-theme="dark"] {
+                --theme-primary: #3E445C;
+                --theme-secondary: #424A69;
+                --theme-tertiary: #4A628A;
+                --theme-accent: #5890CB;
+                --theme-surface: #111827;
+                --theme-surface-strong: #1a2943;
+                --theme-card: #24314d;
+                --theme-border: rgba(148, 163, 184, 0.2);
+                --theme-text: #edf3ff;
+                --theme-text-soft: #d7e4ff;
+                --theme-white: #24314d;
+                --theme-hover: rgba(88, 144, 203, 0.18);
+            }
+
+            body[data-theme="dark"] .page-title,
+            body[data-theme="dark"] .stat-label,
+            body[data-theme="dark"] .stat-value,
+            body[data-theme="dark"] .accordion-title,
+            body[data-theme="dark"] .accordion-sub,
+            body[data-theme="dark"] .accordion-metric,
+            body[data-theme="dark"] .accordion-chevron,
+            body[data-theme="dark"] .tab-btn,
+            body[data-theme="dark"] .tab-btn:not(.active),
+            body[data-theme="dark"] .user-badge,
+            body[data-theme="dark"] td,
+            body[data-theme="dark"] th,
+            body[data-theme="dark"] label,
+            body[data-theme="dark"] .nav-label,
+            body[data-theme="dark"] .logo-sub {
+                color: #edf3ff !important;
+            }
+
+            body[data-theme="dark"] .stat-card,
+            body[data-theme="dark"] .accordion-item,
+            body[data-theme="dark"] .tab-bar,
+            body[data-theme="dark"] form,
+            body[data-theme="dark"] table,
+            body[data-theme="dark"] .sidebar-theme-toggle,
+            body[data-theme="dark"] [style*="background: white"],
+            body[data-theme="dark"] [style*="background: #fff"],
+            body[data-theme="dark"] [style*="background:#fff"],
+            body[data-theme="dark"] [style*="background: #ffffff"] {
+                background: var(--theme-card) !important;
+                border-color: rgba(88, 144, 203, 0.25) !important;
+                color: #edf3ff !important;
+            }
+
+            body[data-theme="dark"] .tab-btn.active {
+                background: var(--theme-accent);
+                color: #ffffff;
+            }
+
+            body[data-theme="dark"] .tab-btn:hover:not(.active) {
+                background: rgba(88, 144, 203, 0.12);
+            }
+
+            body[data-theme="dark"] a {
+                color: #edf3ff !important;
+            }
+
+            body[data-theme="dark"] a:hover {
+                color: #ffffff !important;
+            }
+
             * {
                 margin: 0;
                 padding: 0;
@@ -16,19 +96,27 @@
 
             body {
                 display: flex;
-                background: #f5f3ef;
+                background: var(--theme-surface);
                 min-height: 100vh;
+                color: var(--theme-text);
             }
 
             .sidebar {
                 width: 240px;
-                background: #1a1a2e;
+                background: var(--theme-primary);
                 height: 100vh;
                 position: fixed;
                 top: 0;
                 left: 0;
                 z-index: 200;
                 overflow-y: auto;
+                transition: transform 0.18s ease, visibility 0s linear 0.18s;
+            }
+
+            .sidebar.sidebar-closed {
+                transform: translateX(-100%);
+                visibility: hidden;
+                pointer-events: none;
             }
 
             .logo-area {
@@ -39,7 +127,7 @@
             .logo-name {
                 font-size: 22px;
                 font-weight: 700;
-                color: #e85d04;
+                color: var(--theme-accent);
                 letter-spacing: 2px;
             }
 
@@ -74,7 +162,7 @@
             .nav-item:hover {
                 background: rgba(255,255,255,0.05);
                 color: white;
-                border-left-color:#e85d04 ;
+                border-left-color: var(--theme-accent);
             }
 
             .main {
@@ -82,12 +170,13 @@
                 margin-left: 240px;
                 min-height: 100vh;
                 box-sizing: border-box;
+                transition: margin-left 0.18s ease;
             }
 
 
             .topbar {
-                background: #ffffff;
-                border-bottom: 1px solid #e0ddd8;
+                background: var(--theme-white);
+                border-bottom: 1px solid var(--theme-border);
                 padding: 0 32px;
                 height: 60px;
                 display: flex;
@@ -103,15 +192,61 @@
             .page-title {
                 font-size: 20px;
                 font-weight: 700;
-                color: #1a1a1a;
+                color: var(--theme-primary);
             }
 
             .user-badge {
-                background: #1a1a2e;
+                background: var(--theme-secondary);
                 color: white;
                 padding: 6px 14px;
                 border-radius: 20px;
                 font-size: 12px;
+            }
+
+            .theme-toggle-btn {
+                background: var(--theme-surface-strong);
+                color: var(--theme-text);
+                border: 1px solid var(--theme-border);
+                border-radius: 999px;
+                padding: 7px 12px;
+                font-size: 16px;
+                cursor: pointer;
+                transition: all 0.15s ease;
+                box-shadow: none;
+            }
+
+            .theme-toggle-btn:hover {
+                background: var(--theme-hover);
+            }
+
+            .icon-button {
+                background: transparent;
+                color: #111827;
+                border: none;
+                border-radius: 0;
+                padding: 0;
+                font-size: 22px;
+                line-height: 1;
+                cursor: pointer;
+            }
+
+            .icon-button:hover {
+                background: transparent;
+                color: #000000;
+            }
+
+            .sidebar-theme-toggle {
+                margin: 18px 16px 20px;
+                width: calc(100% - 32px);
+                background: rgba(255,255,255,0.08);
+                color: white;
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 10px;
+                padding: 10px 12px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                text-align: left;
             }
 
             .content {
@@ -140,42 +275,42 @@
             table {
                 width: 100%;
                 border-collapse: collapse;
-                background: white;
+                background: var(--theme-card);
                 border-radius: 12px;
                 overflow: hidden;
                 margin-top: 24px;
             }
 
             thead th, th {
-                background: #faf9f7;
+                background: var(--theme-surface-strong);
                 padding: 12px 24px;
                 text-align: left;
                 font-size: 12px;
                 font-weight: 600;
-                color: #6b6b6b;
+                color: var(--theme-text-soft);
                 text-transform: uppercase;
-                border-bottom: 1px solid #e0ddd8;
+                border-bottom: 1px solid var(--theme-border);
             }
 
             tbody tr, tr {
-                border-bottom: 1px solid #e0ddd8;
+                border-bottom: 1px solid var(--theme-border);
             }
 
             tbody tr:hover, tr:hover {
-                background: #faf9f7;
+                background: var(--theme-hover);
             }
 
             td {
                 padding: 14px 24px;
                 font-size: 14px;
-                color: #1a1a1a;
+                color: var(--theme-text);
             }
 
             form {
-                background: white;
+                background: var(--theme-card);
                 padding: 24px;
                 border-radius: 12px;
-                border: 1px solid #e0ddd8;
+                border: 1px solid var(--theme-border);
                 margin-bottom: 24px;
                 display: flex;
                 gap: 12px;
@@ -184,20 +319,21 @@
             }
 
             input, select {
-                background: #faf9f7;
-                border: 1.5px solid #e0ddd8;
+                background: var(--theme-surface-strong);
+                border: 1.5px solid var(--theme-border);
                 border-radius: 8px;
                 padding: 10px 14px;
                 font-size: 14px;
                 outline: none;
+                color: var(--theme-text);
             }
 
             input:focus, select:focus {
-                border-color: #e85d04;
+                border-color: var(--theme-accent);
             }
 
             button {
-                background: #e85d04;
+                background: var(--theme-tertiary);
                 color: white;
                 border: none;
                 border-radius: 8px;
@@ -208,11 +344,21 @@
             }
 
             button:hover {
-                background: #cf4f03;
+                background: var(--theme-accent);
+            }
+
+            body[data-theme="dark"] .icon-button {
+                background: transparent;
+                color: #edf3ff;
+            }
+
+            body[data-theme="dark"] .icon-button:hover {
+                background: transparent;
+                color: #ffffff;
             }
 
             a {
-                color: #e85d04;
+                color: var(--theme-tertiary);
                 text-decoration: none;
                 font-weight: 600;
             }
@@ -226,13 +372,14 @@
     <body>
         <div class="sidebar">
             <div class="logo-area">
-                <div class="logo-name">SUMAK</div>
-                <div class="logo-sub">ERP SYSTEM</div>
+                <div class="logo-name">SUMAK</div><href ="/"></href>
+                <div class="logo-sub">ERP SYSTEM</div><href ="/"></href>
             </div>
 
             <div class="nav-section">
                 <div class="nav-label">MAIN</div>
                 <a href="/" class="nav-item">🏠 Dashboard</a>
+                <a href="/flow" class="nav-item {% if request.path == '/flow' %}active{% endif %}">🔄 Flow</a>
             </div>
 
             <div class="nav-section">
@@ -280,17 +427,19 @@
                 <div class="nav-label">INVENTORY</div>
                 <a href="/stock" class="nav-item">📦 Stock</a>
             </div>
+
+            <button type="button" class="sidebar-theme-toggle" id="sidebarThemeToggle" aria-label="Switch to light mode">☀️ Light mode</button>
         </div>
 
         <div class="main">
             <div class="topbar">
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <button onclick="toggleSidebar()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #1a1a2e; padding: 0;">☰</button>
+                    <button type="button" class="icon-button" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Open sidebar">☰</button>
                 <div class="page-title">{% block page_title %}SUMAK ERP{% endblock %}</div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
                     <div class="user-badge">👤 {{ session.full_name }}</div>
-                    <a href="/logout" style="background: #1a1a2e; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; text-decoration: none;">Logout</a>
+                    <a href="/logout" style="background: var(--theme-secondary); color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; text-decoration: none;">Logout</a>
                 </div>
 
             </div>
@@ -316,6 +465,31 @@
         </div>
 
         <script>
+            (function() {
+                const savedTheme = localStorage.getItem('sumak-theme');
+                const theme = savedTheme || 'dark';
+                document.body.setAttribute('data-theme', theme);
+
+                function updateThemeButton(themeName) {
+                    const toggle = document.getElementById('sidebarThemeToggle');
+                    if (!toggle) return;
+                    toggle.textContent = themeName === 'dark' ? '☀️ Light mode' : '🌙 Dark mode';
+                    toggle.setAttribute('aria-label', themeName === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+                }
+
+                updateThemeButton(theme);
+
+                const toggle = document.getElementById('sidebarThemeToggle');
+                if (toggle) {
+                    toggle.addEventListener('click', function() {
+                        const nextTheme = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+                        document.body.setAttribute('data-theme', nextTheme);
+                        localStorage.setItem('sumak-theme', nextTheme);
+                        updateThemeButton(nextTheme);
+                    });
+                }
+            })();
+
             setTimeout(function() {
                 var messages = document.getElementById("flash-messages");
                 if (messages) {
@@ -338,8 +512,8 @@
             }
 
             document.addEventListener("DOMContentLoaded", function() {
-                document.querySelector(".sidebar").style.display = "none";
-                document.querySelector(".main").style.marginLeft = "0";
+                var savedSidebarState = localStorage.getItem("sumak-sidebar-open");
+                applySidebarState(savedSidebarState === null ? false : savedSidebarState === "true");
                 document.getElementById("masters-menu").style.display = "none";
                 document.getElementById("transactions-menu").style.display = "none";
                 document.getElementById("accounting-menu").style.display = "none";
@@ -349,16 +523,22 @@
             });
 
 
-            function toggleSidebar() {
+            function applySidebarState(isOpen) {
                 var sidebar = document.querySelector(".sidebar");
                 var main = document.querySelector(".main");
-                if (sidebar.style.display === "none") {
-                    sidebar.style.display = "block";
-                    main.style.marginLeft = "240px";
-                } else {
-                    sidebar.style.display = "none";
-                    main.style.marginLeft = "0";
-                }
+                var toggle = document.getElementById("sidebarToggle");
+                sidebar.style.display = "block";
+                sidebar.classList.toggle("sidebar-closed", !isOpen);
+                main.style.marginLeft = isOpen ? "240px" : "0";
+                toggle.textContent = isOpen ? "✕" : "☰";
+                toggle.setAttribute("aria-label", isOpen ? "Close sidebar" : "Open sidebar");
+            }
+
+            function toggleSidebar() {
+                var sidebar = document.querySelector(".sidebar");
+                var isOpen = !sidebar.classList.contains("sidebar-closed");
+                applySidebarState(isOpen);
+                localStorage.setItem("sumak-sidebar-open", String(isOpen));
             }
 
             var drawerTargetRow = null;
