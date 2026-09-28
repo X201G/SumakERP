@@ -536,9 +536,9 @@
 
             function toggleSidebar() {
                 var sidebar = document.querySelector(".sidebar");
-                var isOpen = !sidebar.classList.contains("sidebar-closed");
-                applySidebarState(isOpen);
-                localStorage.setItem("sumak-sidebar-open", String(isOpen));
+                var shouldOpen = sidebar.classList.contains("sidebar-closed");
+                applySidebarState(shouldOpen);
+                localStorage.setItem("sumak-sidebar-open", String(shouldOpen));
             }
 
             var drawerTargetRow = null;

@@ -1280,6 +1280,78 @@ def create_tables():
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_permissions_user ON permissions(user_id)')
 
+    ## Projects portal
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        client TEXT,
+        stage TEXT NOT NULL DEFAULT 'backlog',
+        priority TEXT NOT NULL DEFAULT 'normal',
+        owner_id INTEGER,
+        start_date DATE,
+        due_date DATE,
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (owner_id) REFERENCES users(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS project_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        details TEXT,
+        assigned_to INTEGER,
+        due_date DATE,
+        stage TEXT NOT NULL DEFAULT 'awaiting_response',
+        is_complete INTEGER NOT NULL DEFAULT 0,
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (assigned_to) REFERENCES users(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute("PRAGMA table_info(project_tasks)")
+    project_task_columns = {row["name"] for row in cursor.fetchall()}
+    if "stage" not in project_task_columns:
+        cursor.execute("ALTER TABLE project_tasks ADD COLUMN stage TEXT NOT NULL DEFAULT 'awaiting_response'")
+    if "updated_at" not in project_task_columns:
+        cursor.execute("ALTER TABLE project_tasks ADD COLUMN updated_at DATETIME")
+    cursor.execute("""
+        UPDATE project_tasks
+        SET stage = CASE
+            WHEN is_complete = 1 OR stage = 'completed' THEN 'completed'
+            WHEN stage = 'backlog' THEN 'awaiting_response'
+            WHEN stage = 'planning' THEN 'awaiting_quotation'
+            WHEN stage = 'in_progress' THEN 'awaiting_visit'
+            WHEN stage = 'on_hold' THEN 'negotiating'
+            ELSE stage
+        END,
+        is_complete = CASE WHEN is_complete = 1 OR stage = 'completed' THEN 1 ELSE 0 END
+        WHERE stage IN ('backlog', 'planning', 'in_progress', 'on_hold', 'completed')
+           OR is_complete = 1
+    """)
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_projects_stage ON projects(stage)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_project_tasks_project ON project_tasks(project_id)')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS project_task_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL,
+        note TEXT NOT NULL,
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (task_id) REFERENCES project_tasks(id) ON DELETE CASCADE,
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_project_task_notes_task ON project_task_notes(task_id, created_at)')
+
     ## Stock Movements
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS stock_movements (

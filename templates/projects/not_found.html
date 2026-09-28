@@ -1,0 +1,10 @@
+{% extends "base_projects.html" %}
+{% block title %}Project not found - SUMAK Projects{% endblock %}
+{% block page_title %}Not found{% endblock %}
+{% block content %}
+<div style="padding:40px 10px; text-align:center; color:var(--theme-muted);">
+    <h1 style="margin:0 0 8px; color:var(--theme-text); font-size:21px;">Project not found</h1>
+    <p style="margin:0 0 18px;">It may have been removed or the address may be incorrect.</p>
+    <a href="{{ url_for('projects.index') }}" style="color:var(--projects-accent);">Return to project board</a>
+</div>
+{% endblock %}

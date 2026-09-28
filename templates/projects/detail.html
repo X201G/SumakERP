@@ -1,0 +1,227 @@
+{% extends "base_projects.html" %}
+
+{% block title %}{{ project.name }} - SUMAK Projects{% endblock %}
+{% block page_title %}Project workspace{% endblock %}
+{% block head %}
+<style>
+    .back-link { display:inline-block; margin-bottom:16px; color:var(--projects-accent); font-size:12px; font-weight:650; }
+    .detail-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:20px; }
+    .detail-heading h1 { margin:0; font-size:23px; line-height:1.3; }
+    .detail-heading p { margin:6px 0 0; color:var(--theme-muted); font-size:13px; }
+    .stage-chip { flex:0 0 auto; padding:7px 10px; border-radius:4px; background:var(--projects-soft); color:var(--projects-accent); font-size:11px; font-weight:700; }
+    .detail-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:18px; align-items:start; }
+    .panel { margin-bottom:16px; padding:19px; border:1px solid var(--theme-border); border-radius:6px; background:var(--theme-card); }
+    .panel-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:15px; }
+    .panel-head h2 { margin:0; font-size:15px; }
+    .panel-sub { margin:4px 0 0; color:var(--theme-muted); font-size:11px; }
+    .icon-button { display:grid; place-items:center; flex:0 0 36px; width:36px; height:36px; border:1px solid var(--theme-border); border-radius:5px; background:transparent; color:var(--theme-text); cursor:pointer; }
+    .icon-button:hover { border-color:var(--projects-accent); color:var(--projects-accent); }
+    .project-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+    .summary-item { min-width:0; }
+    .summary-label { display:block; margin-bottom:4px; color:var(--theme-muted); font-size:10px; font-weight:700; text-transform:uppercase; }
+    .summary-value { font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+    .summary-description { grid-column:1/-1; padding-top:12px; border-top:1px solid var(--theme-border); white-space:pre-wrap; }
+    .save-status { min-height:16px; margin:8px 0 0; color:var(--theme-muted); font-size:11px; text-align:right; }
+    .hidden { display:none !important; }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field.wide { grid-column:1/-1; }
+    .field label { color:var(--theme-muted); font-size:11px; font-weight:650; }
+    .field input,.field select,.field textarea,.task-form input,.task-form textarea,.task-form select { width:100%; min-height:38px; padding:8px 10px; border:1px solid var(--theme-border); border-radius:4px; background:var(--theme-surface); color:var(--theme-text); }
+    .field textarea { min-height:115px; resize:vertical; }
+    .field input,.field select,.field textarea { font-size:12px; }
+    .button { display:inline-flex; justify-content:center; align-items:center; min-height:37px; padding:8px 13px; border:1px solid var(--theme-border); border-radius:4px; background:transparent; color:var(--theme-text); cursor:pointer; font-size:12px; font-weight:600; }
+    .button.primary { border-color:var(--projects-accent); background:var(--projects-accent); color:#fff; }
+    .save-row { display:flex; justify-content:flex-end; margin-top:14px; }
+    .task-form { display:grid; grid-template-columns:minmax(0,1fr) 180px; gap:9px; align-items:start; margin-top:14px; }
+    .task-form .wide { grid-column:1/-1; }
+    .task-form textarea { min-height:70px; resize:vertical; }
+    .task-actions { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
+    .task-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; margin-top:16px; }
+    .task-card { position:relative; min-width:0; overflow:hidden; padding:42px 13px 13px; border:1px solid var(--theme-border); border-radius:5px; background:var(--theme-card); transition:transform .15s ease,border-color .15s ease; }
+    .task-card:hover { transform:translateY(-2px); border-color:var(--task-stage-color); }
+    .task-ribbon { position:absolute; inset:0 0 auto; z-index:2; display:flex; align-items:center; min-height:28px; padding:0 12px; background:var(--task-stage-color); color:var(--task-stage-ink); font-size:10px; font-weight:750; text-transform:uppercase; pointer-events:none; }
+    .task-card-link { position:absolute; inset:0; z-index:1; }
+    .task-card-head,.task-detail,.task-meta { position:relative; z-index:2; pointer-events:none; }
+    .task-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+    .task-title { margin:0; font-size:13px; font-weight:650; line-height:1.4; }
+    .task-title.done { color:var(--theme-muted); text-decoration:line-through; }
+    .task-detail { margin:9px 0; color:var(--theme-muted); font-size:11px; line-height:1.45; white-space:pre-wrap; }
+    .task-meta { display:flex; justify-content:space-between; gap:8px; margin-top:12px; padding-top:9px; border-top:1px solid var(--theme-border); color:var(--theme-muted); font-size:10px; }
+    .task-empty { grid-column:1/-1; padding:20px 0; color:var(--theme-muted); font-size:12px; text-align:center; }
+    .task-awaiting_response { --task-stage-color:#31566f; --task-stage-ink:#fff; }
+    .task-awaiting_quotation { --task-stage-color:#205f8f; --task-stage-ink:#fff; }
+    .task-awaiting_visit { --task-stage-color:#176c62; --task-stage-ink:#fff; }
+    .task-negotiating { --task-stage-color:#805900; --task-stage-ink:#fff; }
+    .task-rejected { --task-stage-color:#9f3030; --task-stage-ink:#fff; }
+    .task-selected { --task-stage-color:#4e5b91; --task-stage-ink:#fff; }
+    .task-completed { --task-stage-color:#397145; --task-stage-ink:#fff; }
+    .progress-track { height:5px; overflow:hidden; margin-top:9px; border-radius:5px; background:var(--theme-border); }
+    .progress-fill { height:100%; background:var(--projects-accent); }
+    @media(max-width:550px) {
+        .detail-heading { flex-direction:column; }
+        .fields { grid-template-columns:1fr; }
+        .field.wide { grid-column:auto; }
+        .panel { padding:15px; }
+        .task-form { grid-template-columns:1fr; }
+        .task-form .wide { grid-column:auto; }
+        .project-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<a class="back-link" id="projectBoardLink" href="{{ url_for('projects.index') }}">← Project board</a>
+<div class="detail-heading">
+    <div>
+        <h1>{{ project.name }}</h1>
+        <p>{% if project.client %}{{ project.client }} · {% endif %}Created {{ project.created_at[:10] }}</p>
+    </div>
+    <span class="stage-chip">{{ stage_labels[project.stage] }}</span>
+</div>
+<div class="detail-layout">
+    <section class="panel" id="projectDetailsPanel">
+        <div class="panel-head">
+            <div><h2>Project details</h2><p class="panel-sub">Scope, owner, priority, and timeline.</p></div>
+            <button class="icon-button" id="editDetailsToggle" type="button" aria-label="Edit project details" title="Edit project details" aria-expanded="false">✎</button>
+        </div>
+        <div class="project-summary" id="projectSummary">
+            <div class="summary-item"><span class="summary-label">Client / department</span><div class="summary-value" id="summaryClient">{{ project.client or 'Not set' }}</div></div>
+            <div class="summary-item"><span class="summary-label">Owner</span><div class="summary-value" id="summaryOwner">{{ project.owner_name or project.owner_username or 'Unassigned' }}</div></div>
+            <div class="summary-item"><span class="summary-label">Priority</span><div class="summary-value" id="summaryPriority">{{ project.priority|title }}</div></div>
+            <div class="summary-item"><span class="summary-label">Timeline</span><div class="summary-value" id="summaryTimeline">{{ project.start_date or 'No start date' }} – {{ project.due_date or 'No target date' }}</div></div>
+            <div class="summary-item summary-description {% if not project.description %}hidden{% endif %}" id="summaryDescriptionBlock"><span class="summary-label">Project brief</span><div class="summary-value" id="summaryDescription">{{ project.description or '' }}</div></div>
+        </div>
+        <form class="hidden" id="projectDetailsForm" method="POST" action="{{ url_for('projects.update_project', project_id=project.id) }}">
+            <div class="fields">
+                <div class="field wide"><label for="name">Project name</label><input id="name" name="name" value="{{ project.name }}" maxlength="160" required></div>
+                <div class="field"><label for="client">Client / department</label><input id="client" name="client" value="{{ project.client or '' }}" maxlength="160"></div>
+                <div class="field"><label for="stage">Stage</label><select id="stage" name="stage">{% for stage in stages %}<option value="{{ stage }}" {% if project.stage == stage %}selected{% endif %}>{{ stage_labels[stage] }}</option>{% endfor %}</select></div>
+                <div class="field"><label for="owner_id">Project owner</label><select id="owner_id" name="owner_id"><option value="">Unassigned</option>{% for user in users %}<option value="{{ user.id }}" {% if project.owner_id == user.id %}selected{% endif %}>{{ user.full_name or user.username }}</option>{% endfor %}</select></div>
+                <div class="field"><label for="priority">Priority</label><select id="priority" name="priority">{% for priority in priorities %}<option value="{{ priority }}" {% if project.priority == priority %}selected{% endif %}>{{ priority|title }}</option>{% endfor %}</select></div>
+                <div class="field"><label for="start_date">Start date</label><input id="start_date" name="start_date" type="date" value="{{ project.start_date or '' }}"></div>
+                <div class="field"><label for="due_date">Target date</label><input id="due_date" name="due_date" type="date" value="{{ project.due_date or '' }}"></div>
+                <div class="field wide"><label for="description">Project brief</label><textarea id="description" name="description">{{ project.description or '' }}</textarea></div>
+            </div>
+            <p class="save-status" id="projectSaveStatus" role="status" aria-live="polite"></p>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-head">
+            <div><h2>Work items</h2><p class="panel-sub" id="workItemSummary">{{ tasks|selectattr('stage', 'equalto', 'completed')|list|length }} of {{ tasks|length }} complete</p></div>
+            <button class="button primary" id="newItemToggle" type="button" aria-expanded="false" aria-controls="newItemForm">＋ New Item</button>
+        </div>
+        <form class="task-form hidden" id="newItemForm" method="POST" action="{{ url_for('projects.add_task', project_id=project.id) }}">
+            <input class="wide" name="title" maxlength="180" placeholder="Task name" required>
+            <input name="due_date" type="date" aria-label="Task due date">
+            <select name="stage" aria-label="Initial task stage">{% for stage in task_stages %}<option value="{{ stage }}" {% if stage == 'awaiting_response' %}selected{% endif %}>{{ task_stage_labels[stage] }}</option>{% endfor %}</select>
+            <textarea class="wide" name="details" placeholder="Task details (optional)"></textarea>
+            <div class="task-actions"><button class="button primary" type="submit">Add item</button></div>
+        </form>
+        {% if tasks %}
+        <div class="task-grid" id="taskGrid">
+            {% for task in tasks %}
+            <article class="task-card task-{{ task.stage }}" data-task-id="{{ task.id }}">
+                <div class="task-ribbon">{{ task_stage_labels[task.stage] }}</div>
+                <a class="task-card-link" href="{{ url_for('projects.task_detail', project_id=project.id, task_id=task.id) }}" aria-label="Open work item: {{ task.title }}"></a>
+                <div class="task-card-head">
+                    <h3 class="task-title {% if task.stage == 'completed' %}done{% endif %}">{{ task.title }}</h3>
+                </div>
+                {% if task.details %}<p class="task-detail">{{ task.details }}</p>{% endif %}
+                <div class="task-meta">
+                    <span>{% if task.due_date %}Due {{ task.due_date }}{% else %}No due date{% endif %}</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="task-empty">No work items yet.</div>
+        {% endif %}
+    </section>
+</div>
+<script>
+    const detailsForm = document.getElementById('projectDetailsForm');
+    const detailsSummary = document.getElementById('projectSummary');
+    const detailsToggle = document.getElementById('editDetailsToggle');
+    const saveStatus = document.getElementById('projectSaveStatus');
+    const boardLink = document.getElementById('projectBoardLink');
+    const newItemToggle = document.getElementById('newItemToggle');
+    const newItemForm = document.getElementById('newItemForm');
+    let detailsAreDirty = false;
+    let saveTimer = null;
+    let saveInFlight = Promise.resolve(true);
+
+    detailsToggle.addEventListener('click', () => {
+        const editing = detailsForm.classList.contains('hidden');
+        detailsForm.classList.toggle('hidden', !editing);
+        detailsSummary.classList.toggle('hidden', editing);
+        detailsToggle.textContent = editing ? '×' : '✎';
+        detailsToggle.setAttribute('aria-label', editing ? 'Collapse project details' : 'Edit project details');
+        detailsToggle.title = editing ? 'Collapse project details' : 'Edit project details';
+        detailsToggle.setAttribute('aria-expanded', String(editing));
+        if (editing) detailsForm.querySelector('[name="name"]').focus();
+    });
+
+    newItemToggle.addEventListener('click', () => {
+        const isHidden = newItemForm.classList.toggle('hidden');
+        newItemToggle.setAttribute('aria-expanded', String(!isHidden));
+        newItemToggle.textContent = isHidden ? '＋ New Item' : '× Close';
+        if (!isHidden) newItemForm.querySelector('[name="title"]').focus();
+    });
+
+    function saveProjectDetails() {
+        if (!detailsAreDirty) return saveInFlight;
+        clearTimeout(saveTimer);
+        detailsAreDirty = false;
+        saveStatus.textContent = 'Saving…';
+        const values = Object.fromEntries(new FormData(detailsForm).entries());
+        saveInFlight = saveInFlight.catch(() => false).then(async () => {
+            const response = await fetch(detailsForm.action, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values)
+            });
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Unable to save project details');
+            }
+            document.querySelector('.detail-heading h1').textContent = values.name;
+            document.getElementById('summaryClient').textContent = values.client || 'Not set';
+            const ownerSelect = detailsForm.querySelector('[name="owner_id"]');
+            document.getElementById('summaryOwner').textContent = ownerSelect.selectedOptions[0].text;
+            document.getElementById('summaryPriority').textContent = values.priority.charAt(0).toUpperCase() + values.priority.slice(1);
+            document.getElementById('summaryTimeline').textContent = `${values.start_date || 'No start date'} – ${values.due_date || 'No target date'}`;
+            const descriptionBlock = document.getElementById('summaryDescriptionBlock');
+            descriptionBlock.classList.toggle('hidden', !values.description.trim());
+            document.getElementById('summaryDescription').textContent = values.description;
+            document.querySelector('.stage-chip').textContent = detailsForm.querySelector('[name="stage"] option:checked').textContent;
+            saveStatus.textContent = 'Saved';
+            return true;
+        }).catch(error => {
+            detailsAreDirty = true;
+            saveStatus.textContent = error.message;
+            return false;
+        });
+        return saveInFlight;
+    }
+
+    detailsForm.addEventListener('input', () => {
+        detailsAreDirty = true;
+        saveStatus.textContent = 'Unsaved changes';
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveProjectDetails, 500);
+    });
+    detailsForm.addEventListener('change', () => {
+        detailsAreDirty = true;
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveProjectDetails, 250);
+    });
+    boardLink.addEventListener('click', async event => {
+        if (!detailsAreDirty && !saveTimer) return;
+        event.preventDefault();
+        const saved = await saveProjectDetails();
+        if (saved) window.location.assign(boardLink.href);
+    });
+
+</script>
+{% endblock %}

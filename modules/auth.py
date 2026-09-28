@@ -111,6 +111,8 @@ def login():
             return redirect(next_url)
         if system == "manufacturing":
             return redirect(url_for("manufacturing.index"))
+        if system == "projects":
+            return redirect(url_for("projects.index"))
         return redirect(url_for("index"))
 
     system = request.args.get("system")
@@ -136,8 +138,49 @@ def users_list():
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE system = ? ORDER BY username", (system,))
     users = cursor.fetchall()
+    cursor.execute("SELECT COUNT(*) FROM users WHERE system = 'projects'")
+    projects_setup_available = cursor.fetchone()[0] == 0
     conn.close()
-    return render_template("auth/users.html", users=users, roles=ROLES, system=system)
+    template = "projects/users.html" if system == "projects" else "auth/users.html"
+    return render_template(template, users=users, roles=ROLES, system=system,
+                           projects_setup_available=projects_setup_available)
+
+@auth.route("/users/setup-projects", methods=["GET", "POST"])
+@roles_required("admin")
+def setup_projects():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users WHERE system = 'projects'")
+    already_setup = cursor.fetchone()[0] > 0
+    if already_setup:
+        conn.close()
+        flash("The Projects portal already has a user. Add further users from that portal.", "info")
+        return redirect(url_for("auth.users_list"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        full_name = request.form.get("full_name", "").strip()
+        password = request.form.get("password", "")
+        if not username or len(password) < 8:
+            conn.close()
+            flash("Enter a username and a password with at least 8 characters.", "danger")
+            return render_template("auth/project_setup.html")
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, full_name, role, system) VALUES (?,?,?,?,?)",
+                (username, generate_password_hash(password), full_name, "admin", "projects")
+            )
+            conn.commit()
+        except Exception:
+            conn.close()
+            flash("That username is already taken.", "danger")
+            return render_template("auth/project_setup.html")
+        conn.close()
+        flash("Projects administrator created. Sign in to Projects with those credentials.", "success")
+        return redirect(url_for("auth.users_list"))
+
+    conn.close()
+    return render_template("auth/project_setup.html")
 
 @auth.route("/users/add", methods=["GET", "POST"])
 @roles_required("admin")
@@ -161,7 +204,10 @@ def add_user():
             flash("That username is already taken.", "danger")
         conn.close()
         return redirect(url_for("auth.users_list"))
-    return render_template("auth/users.html", users=[], roles=ROLES, system=session.get("system", "distribution"))
+    system = session.get("system", "distribution")
+    if system == "projects":
+        return render_template("projects/user_form.html", system=system, roles=ROLES, editing=False)
+    return render_template("auth/users.html", users=[], roles=ROLES, system=system)
 
 @auth.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
 @roles_required("admin")
@@ -194,6 +240,8 @@ def edit_user(user_id):
     if not user:
         flash("User not found.", "danger")
         return redirect(url_for("auth.users_list"))
+    if system == "projects":
+        return render_template("projects/user_form.html", user=user, roles=ROLES, editing=True, system=system)
     return render_template("auth/users.html", users=[], user=user, roles=ROLES, editing=True, system=system)
 
 @auth.route("/users/delete/<int:user_id>")

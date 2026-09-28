@@ -1,0 +1,16 @@
+{% extends "base_projects.html" if session.get('system') == 'projects' else "base.html" %}
+
+{% block title %}Set up Projects - SUMAK ERP{% endblock %}
+{% block page_title %}Set up Projects{% endblock %}
+{% block content %}
+<div style="max-width:620px; margin:10px auto; padding:24px; border:1px solid var(--theme-border, #e0e2e6); border-radius:6px; background:var(--theme-card, #fff);">
+    <h1 style="margin:0 0 8px; font-size:21px;">Create the Projects administrator</h1>
+    <p style="margin:0 0 20px; color:var(--theme-muted, #6b6b6b); font-size:13px; line-height:1.5;">This creates the first isolated Projects login. After signing in, its administrator can add the rest of the Projects team.</p>
+    <form method="POST" style="display:grid; gap:14px;">
+        <div style="display:grid; gap:6px;"><label for="username">Username</label><input id="username" name="username" required autocomplete="username"></div>
+        <div style="display:grid; gap:6px;"><label for="full_name">Full name</label><input id="full_name" name="full_name" autocomplete="name"></div>
+        <div style="display:grid; gap:6px;"><label for="password">Password (at least 8 characters)</label><input id="password" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:4px;"><a href="{{ url_for('auth.users_list') }}" style="padding:10px 13px;">Cancel</a><button type="submit" style="border:0; border-radius:4px; padding:10px 15px; background:#287a72; color:#fff; font-weight:650; cursor:pointer;">Create Projects admin</button></div>
+    </form>
+</div>
+{% endblock %}

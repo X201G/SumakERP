@@ -21,6 +21,8 @@ from modules.manufacturing_accounting import manufacturing_accounting
 app.register_blueprint(manufacturing_accounting)
 from modules.resharpening import resharpening
 app.register_blueprint(resharpening)
+from modules.projects import projects
+app.register_blueprint(projects)
 from modules.permissions import has_permission
 app.jinja_env.globals["has_perm"] = has_permission
 

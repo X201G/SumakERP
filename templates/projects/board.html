@@ -1,0 +1,179 @@
+{% extends "base_projects.html" %}
+
+{% block title %}Project Board - SUMAK Projects{% endblock %}
+{% block page_title %}Project board{% endblock %}
+{% block head %}
+<style>
+    .board-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:22px; }
+    .board-heading h1 { margin:0; font-size:23px; }
+    .board-heading p { margin:6px 0 0; color:var(--theme-muted); font-size:13px; }
+    .primary-action { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:10px 15px; border:0; border-radius:5px; background:var(--projects-accent); color:#fff; font-weight:650; cursor:pointer; }
+    .summary { display:flex; gap:24px; margin-bottom:20px; color:var(--theme-muted); font-size:13px; }
+    .summary strong { color:var(--theme-text); font-size:17px; margin-right:5px; }
+    .board { display:grid; grid-template-columns:repeat(5,minmax(220px,1fr)); gap:13px; align-items:start; overflow-x:auto; padding-bottom:12px; }
+    .stage-column { min-width:220px; }
+    .stage-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 2px 9px; border-bottom:2px solid var(--stage-color); }
+    .stage-head h2 { margin:0; font-size:13px; }
+    .stage-count { color:var(--theme-muted); font-size:12px; }
+    .stage-column.drag-target { background:var(--projects-soft); outline:2px dashed var(--projects-accent); outline-offset:5px; }
+    .project-card { display:block; margin-bottom:10px; padding:14px; border:1px solid var(--theme-border); border-radius:6px; background:var(--theme-card); color:var(--theme-text); transition:transform .15s ease,border-color .15s ease; }
+    .project-card:hover { transform:translateY(-2px); border-color:var(--projects-accent); }
+    .project-card[draggable="true"] { cursor:grab; }
+    .project-card.is-dragging { opacity:.45; }
+    .project-card h3 { margin:0; font-size:14px; line-height:1.4; }
+    .project-client { margin:5px 0 0; color:var(--theme-muted); font-size:12px; }
+    .project-desc { display:-webkit-box; overflow:hidden; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; margin:11px 0; color:var(--theme-muted); font-size:12px; line-height:1.5; }
+    .project-meta { display:flex; justify-content:space-between; gap:8px; padding-top:10px; border-top:1px solid var(--theme-border); color:var(--theme-muted); font-size:11px; }
+    .priority { display:inline-block; padding:3px 7px; border-radius:3px; background:var(--projects-soft); color:var(--projects-accent); font-size:10px; font-weight:700; text-transform:uppercase; }
+    .task-progress { margin-top:10px; }
+    .task-progress-label { display:flex; justify-content:space-between; margin-bottom:5px; color:var(--theme-muted); font-size:10px; }
+    .task-progress progress { display:block; width:100%; height:5px; border:0; border-radius:4px; background:var(--theme-border); }
+    .task-progress progress::-webkit-progress-bar { border-radius:4px; background:var(--theme-border); }
+    .task-progress progress::-webkit-progress-value { border-radius:4px; background:var(--projects-accent); }
+    .task-progress progress::-moz-progress-bar { border-radius:4px; background:var(--projects-accent); }
+    .stage-backlog { --stage-color:#78808b; }
+    .stage-planning { --stage-color:#4e7da5; }
+    .stage-in_progress { --stage-color:#287a72; }
+    .stage-on_hold { --stage-color:#bd7932; }
+    .stage-completed { --stage-color:#54845e; }
+    .empty-column { padding:14px 10px; border:1px dashed var(--theme-border); border-radius:5px; color:var(--theme-muted); font-size:12px; text-align:center; }
+    .empty-state { padding:50px 20px; border:1px dashed var(--theme-border); border-radius:6px; color:var(--theme-muted); text-align:center; }
+    .empty-state h2 { margin:0 0 8px; color:var(--theme-text); font-size:17px; }
+    .board-status { min-height:18px; margin:0 0 10px; color:var(--theme-muted); font-size:12px; }
+    @media(max-width:1150px) { .board { grid-template-columns:repeat(5,minmax(205px,1fr)); } }
+    @media(max-width:760px) {
+        .board-heading { align-items:flex-start; flex-direction:column; }
+        .board { display:flex; flex-direction:column; overflow:visible; }
+        .stage-column { width:100%; min-width:0; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="board-heading">
+    <div>
+        <h1>Projects</h1>
+        <p>Work in progress, organized by stage.</p>
+    </div>
+    <a class="primary-action" href="{{ url_for('projects.create_project') }}">＋ New project</a>
+</div>
+<div class="summary">
+    <span><strong>{{ total_projects }}</strong> total</span>
+    <span><strong id="activeProjectCount">{{ active_projects }}</strong> active</span>
+</div>
+<div class="board-status" id="boardStatus" role="status" aria-live="polite"></div>
+{% if total_projects %}
+<div class="board">
+    {% for stage in stages %}
+    <section class="stage-column stage-{{ stage }}" data-stage="{{ stage }}">
+        <div class="stage-head">
+            <h2>{{ stage_labels[stage] }}</h2>
+            <span class="stage-count">{{ projects_by_stage[stage]|length }}</span>
+        </div>
+        {% for project in projects_by_stage[stage] %}
+        <a class="project-card" draggable="true" data-project-id="{{ project.id }}" data-stage="{{ stage }}" href="{{ url_for('projects.detail', project_id=project.id) }}">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                <h3>{{ project.name }}</h3>
+                <span class="priority">{{ project.priority }}</span>
+            </div>
+            {% if project.client %}<p class="project-client">{{ project.client }}</p>{% endif %}
+            {% if project.description %}<p class="project-desc">{{ project.description }}</p>{% endif %}
+            <div class="project-meta">
+                <span>{{ project.owner_name or project.owner_username or 'Unassigned' }}</span>
+                <span>{% if project.due_date %}Due {{ project.due_date }}{% else %}No due date{% endif %}</span>
+            </div>
+            {% if project.task_count %}
+            <div class="task-progress">
+                <div class="task-progress-label"><span>Tasks</span><span>{{ project.completed_tasks }}/{{ project.task_count }}</span></div>
+                <progress aria-label="Task completion" value="{{ project.completed_tasks }}" max="{{ project.task_count }}"></progress>
+            </div>
+            {% endif %}
+        </a>
+        {% else %}
+        <div class="empty-column">No projects in this stage</div>
+        {% endfor %}
+    </section>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <h2>Start with a project</h2>
+    <p>Create a project to track its stage, owner, timeline, and tasks.</p>
+</div>
+{% endif %}
+<script>
+    const stageColumns = document.querySelectorAll('.stage-column');
+    const boardStatus = document.getElementById('boardStatus');
+    let draggedCard = null;
+
+    document.querySelectorAll('.project-card[draggable="true"]').forEach(card => {
+        card.addEventListener('dragstart', event => {
+            draggedCard = card;
+            card.classList.add('is-dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', card.dataset.projectId);
+        });
+        card.addEventListener('dragend', () => {
+            card.classList.remove('is-dragging');
+            stageColumns.forEach(column => column.classList.remove('drag-target'));
+            draggedCard = null;
+        });
+    });
+
+    stageColumns.forEach(column => {
+        column.addEventListener('dragover', event => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            column.classList.add('drag-target');
+        });
+        column.addEventListener('dragleave', event => {
+            if (!column.contains(event.relatedTarget)) column.classList.remove('drag-target');
+        });
+        column.addEventListener('drop', async event => {
+            event.preventDefault();
+            column.classList.remove('drag-target');
+            const projectId = event.dataTransfer.getData('text/plain');
+            const card = draggedCard || document.querySelector(`[data-project-id="${projectId}"]`);
+            const stage = column.dataset.stage;
+            if (!card || card.dataset.stage === stage) return;
+
+            const previousColumn = card.closest('.stage-column');
+            column.querySelector('.stage-head').after(card);
+            card.dataset.stage = stage;
+            updateColumnCounts();
+            boardStatus.textContent = 'Saving stage…';
+            try {
+                const response = await fetch(`/projects/${projectId}/stage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stage })
+                });
+                if (!response.ok) throw new Error('Could not save stage');
+                boardStatus.textContent = 'Stage saved';
+            } catch (error) {
+                previousColumn.querySelector('.stage-head').after(card);
+                card.dataset.stage = previousColumn.dataset.stage;
+                updateColumnCounts();
+                boardStatus.textContent = 'Stage could not be saved. Try again.';
+            }
+        });
+    });
+
+    function updateColumnCounts() {
+        let activeCount = 0;
+        stageColumns.forEach(column => {
+            const count = column.querySelectorAll('.project-card').length;
+            if (column.dataset.stage !== 'completed') activeCount += count;
+            column.querySelector('.stage-count').textContent = count;
+            const empty = column.querySelector('.empty-column');
+            if (count && empty) empty.remove();
+            if (!count && !empty) {
+                const emptyMessage = document.createElement('div');
+                emptyMessage.className = 'empty-column';
+                emptyMessage.textContent = 'No projects in this stage';
+                column.appendChild(emptyMessage);
+            }
+        });
+        document.getElementById('activeProjectCount').textContent = activeCount;
+    }
+</script>
+{% endblock %}

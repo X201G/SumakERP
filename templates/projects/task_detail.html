@@ -1,0 +1,86 @@
+{% extends "base_projects.html" %}
+
+{% block title %}{{ task.title }} - {{ project.name }}{% endblock %}
+{% block page_title %}Work item{% endblock %}
+{% block head %}
+<style>
+    .back-link { display:inline-block; margin-bottom:16px; color:var(--projects-accent); font-size:12px; font-weight:650; }
+    .item-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:20px; }
+    .item-heading h1 { margin:0; font-size:23px; line-height:1.35; }
+    .item-heading p { margin:6px 0 0; color:var(--theme-muted); font-size:12px; }
+    .stage-chip { flex:0 0 auto; padding:8px 11px; border-radius:4px; background:var(--stage-color); color:#fff; font-size:12px; font-weight:750; }
+    .stage-awaiting_response { --stage-color:#31566f; }
+    .stage-awaiting_quotation { --stage-color:#205f8f; }
+    .stage-awaiting_visit { --stage-color:#176c62; }
+    .stage-negotiating { --stage-color:#805900; }
+    .stage-rejected { --stage-color:#9f3030; }
+    .stage-selected { --stage-color:#4e5b91; }
+    .stage-completed { --stage-color:#397145; }
+    .layout { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr); gap:16px; align-items:start; }
+    .panel { padding:20px; border:1px solid var(--theme-border); border-radius:6px; background:var(--theme-card); }
+    .panel h2 { margin:0 0 15px; font-size:15px; }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field.wide { grid-column:1/-1; }
+    .field label { color:var(--theme-muted); font-size:11px; font-weight:650; }
+    .field input,.field select,.field textarea,.note-form textarea { width:100%; min-height:39px; padding:9px 10px; border:1px solid var(--theme-border); border-radius:4px; background:var(--theme-surface); color:var(--theme-text); font:inherit; font-size:12px; }
+    .field textarea,.note-form textarea { min-height:150px; resize:vertical; }
+    .button { display:inline-flex; justify-content:center; align-items:center; min-height:38px; padding:8px 14px; border:1px solid var(--theme-border); border-radius:4px; background:transparent; color:var(--theme-text); font-size:12px; font-weight:650; }
+    .button.primary { border-color:var(--projects-accent); background:var(--projects-accent); color:#fff; cursor:pointer; }
+    .form-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:17px; }
+    .note-form { display:grid; gap:10px; }
+    .note-list { display:grid; gap:0; margin-top:18px; }
+    .note { padding:14px 0; border-top:1px solid var(--theme-border); }
+    .note-meta { display:flex; justify-content:space-between; gap:10px; color:var(--theme-muted); font-size:10px; }
+    .note-body { margin:9px 0 0; font-size:12px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .empty-notes { padding:18px 0; color:var(--theme-muted); font-size:12px; }
+    @media(max-width:800px) { .layout { grid-template-columns:1fr; } }
+    @media(max-width:550px) {
+        .item-heading { flex-direction:column; }
+        .fields { grid-template-columns:1fr; }
+        .field.wide { grid-column:auto; }
+        .panel { padding:15px; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<a class="back-link" href="{{ url_for('projects.detail', project_id=project.id) }}">← {{ project.name }}</a>
+<div class="item-heading">
+    <div>
+        <h1>{{ task.title }}</h1>
+        <p>{% if task.created_at %}Created {{ task.created_at[:10] }}{% endif %}{% if task.updated_at %} · Updated {{ task.updated_at[:10] }}{% endif %}</p>
+    </div>
+    <span class="stage-chip stage-{{ task.stage }}">{{ task_stage_labels[task.stage] }}</span>
+</div>
+<div class="layout">
+    <section class="panel">
+        <h2>Work item details</h2>
+        <form method="POST">
+            <div class="fields">
+                <div class="field wide"><label for="title">Item name</label><input id="title" name="title" maxlength="180" value="{{ task.title }}" required></div>
+                <div class="field"><label for="stage">Stage</label><select id="stage" name="stage">{% for stage in task_stages %}<option value="{{ stage }}" {% if task.stage == stage %}selected{% endif %}>{{ task_stage_labels[stage] }}</option>{% endfor %}</select></div>
+                <div class="field"><label for="due_date">Due date</label><input id="due_date" name="due_date" type="date" value="{{ task.due_date or '' }}"></div>
+                <div class="field wide"><label for="details">Details</label><textarea id="details" name="details">{{ task.details or '' }}</textarea></div>
+            </div>
+            <div class="form-actions"><a class="button" href="{{ url_for('projects.detail', project_id=project.id) }}">Cancel</a><button class="button primary" type="submit">Save changes</button></div>
+        </form>
+    </section>
+    <section class="panel">
+        <h2>Notes</h2>
+        <form class="note-form" method="POST" action="{{ url_for('projects.add_task_note', project_id=project.id, task_id=task.id) }}">
+            <div class="field"><label for="note">Add a note</label><textarea id="note" name="note" placeholder="Record a conversation, update, or next step" required></textarea></div>
+            <div class="form-actions"><button class="button primary" type="submit">Add note</button></div>
+        </form>
+        <div class="note-list">
+            {% for note in notes %}
+            <article class="note">
+                <div class="note-meta"><span>{{ note.full_name or note.username }}</span><time>{{ note.created_at }}</time></div>
+                <p class="note-body">{{ note.note }}</p>
+            </article>
+            {% else %}
+            <div class="empty-notes">No notes yet.</div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

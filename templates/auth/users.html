@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base_projects.html" if session.get('system') == 'projects' else "base.html" %}
 
 {% block title %}Users - SUMAK ERP{% endblock %}
 
@@ -9,6 +9,9 @@
 <p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">{{ system|title }}-only logins. Admins can manage the users for this system without affecting the other portal.</p>
 
 <a href="/users/add" style="display: inline-block; margin-bottom: 16px; background: #e85d04; color: white; padding: 10px 22px; border-radius: 8px; font-size: 13.5px; font-weight: 600;">+ Add User</a>
+{% if projects_setup_available and system != 'projects' %}
+<a href="/users/setup-projects" style="display: inline-block; margin: 0 0 16px 8px; background: #287a72; color: white; padding: 10px 22px; border-radius: 8px; font-size: 13.5px; font-weight: 600;">Set up Projects portal</a>
+{% endif %}
 
 <table>
     <thead>

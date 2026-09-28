@@ -1,0 +1,70 @@
+{% extends "base_projects.html" %}
+
+{% block title %}Users - SUMAK Projects{% endblock %}
+{% block page_title %}Users &amp; Access{% endblock %}
+{% block head %}
+<style>
+    .users-page { max-width:1100px; }
+    .users-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:20px; }
+    .users-heading h1 { margin:0; font-size:22px; }
+    .users-heading p { margin:6px 0 0; color:var(--theme-muted); font-size:13px; }
+    .primary-action { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:39px; padding:9px 14px; border:0; border-radius:5px; background:var(--projects-accent); color:#fff; font-size:13px; font-weight:650; }
+    .table-wrap { overflow-x:auto; border:1px solid var(--theme-border); border-radius:6px; background:var(--theme-card); }
+    .users-table { width:100%; min-width:680px; border-collapse:collapse; text-align:left; }
+    .users-table th { padding:12px 15px; border-bottom:1px solid var(--theme-border); background:var(--theme-surface); color:var(--theme-muted); font-size:10px; font-weight:700; text-transform:uppercase; }
+    .users-table td { padding:13px 15px; border-bottom:1px solid var(--theme-border); font-size:12px; }
+    .users-table tr:last-child td { border-bottom:0; }
+    .users-table tbody tr:hover { background:var(--projects-soft); }
+    .role-badge,.status-badge { display:inline-flex; align-items:center; min-height:23px; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:700; text-transform:uppercase; }
+    .role-admin { background:#e3eef5; color:#3e7194; }
+    .role-staff { background:var(--projects-soft); color:var(--projects-accent); }
+    .status-active { background:#e5f0e5; color:#54845e; }
+    .status-inactive { background:#f5ecdc; color:#a06a21; }
+    .row-actions { display:flex; align-items:center; gap:12px; white-space:nowrap; }
+    .row-actions a { color:var(--projects-accent); font-weight:650; }
+    .row-actions a.delete { color:#a74343; }
+    .empty-row { padding:28px 15px !important; color:var(--theme-muted); text-align:center; }
+    @media(max-width:600px) {
+        .users-heading { align-items:flex-start; flex-direction:column; }
+        .primary-action { width:100%; }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="users-page">
+    <div class="users-heading">
+        <div>
+            <h1>Project team</h1>
+            <p>Projects-only accounts, managed separately from the other systems.</p>
+        </div>
+        <a class="primary-action" href="{{ url_for('auth.add_user') }}">＋ Add User</a>
+    </div>
+    <div class="table-wrap">
+        <table class="users-table">
+            <thead>
+                <tr><th>Username</th><th>Full name</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.full_name or '—' }}</td>
+                    <td><span class="role-badge {% if user.role == 'admin' %}role-admin{% else %}role-staff{% endif %}">{{ user.role|title }}</span></td>
+                    <td><span class="status-badge {% if user.is_active %}status-active{% else %}status-inactive{% endif %}">{{ 'Active' if user.is_active else 'Inactive' }}</span></td>
+                    <td>
+                        <div class="row-actions">
+                            <a href="{{ url_for('auth.edit_user', user_id=user.id) }}">Edit</a>
+                            {% if user.id != session['user_id'] %}
+                            <a class="delete" href="{{ url_for('auth.delete_user', user_id=user.id) }}" onclick="return confirm('Delete this user?')">Delete</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td class="empty-row" colspan="5">No Projects users yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base_projects.html" %}
+
+{% block title %}{{ page_heading }} - SUMAK Projects{% endblock %}
+{% block page_title %}{{ page_heading }}{% endblock %}
+{% block head %}
+<style>
+    .form-wrap { max-width:850px; }
+    .form-header { margin-bottom:20px; }
+    .form-header h1 { margin:0; font-size:22px; }
+    .form-header p { margin:6px 0 0; color:var(--theme-muted); font-size:13px; }
+    .form-panel { padding:22px; border:1px solid var(--theme-border); border-radius:6px; background:var(--theme-card); }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .field { display:flex; flex-direction:column; gap:7px; }
+    .field.wide { grid-column:1/-1; }
+    .field label { font-size:12px; font-weight:650; }
+    .field input,.field select,.field textarea { width:100%; min-height:40px; padding:9px 11px; border:1px solid var(--theme-border); border-radius:4px; background:var(--theme-surface); color:var(--theme-text); }
+    .field textarea { min-height:130px; resize:vertical; }
+    .form-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+    .button { display:inline-flex; align-items:center; justify-content:center; min-height:39px; padding:9px 15px; border:1px solid var(--theme-border); border-radius:4px; background:transparent; color:var(--theme-text); cursor:pointer; }
+    .button.primary { border-color:var(--projects-accent); background:var(--projects-accent); color:white; font-weight:650; }
+    @media(max-width:600px) { .fields { grid-template-columns:1fr; } .field.wide { grid-column:auto; } .form-panel { padding:16px; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="form-wrap">
+    <div class="form-header"><h1>{{ page_heading }}</h1><p>Set up the project scope and ownership. You can update its stage from the project workspace.</p></div>
+    <form class="form-panel" method="POST">
+        <div class="fields">
+            <div class="field wide"><label for="name">Project name</label><input id="name" name="name" maxlength="160" required autofocus></div>
+            <div class="field"><label for="client">Client / department</label><input id="client" name="client" maxlength="160"></div>
+            <div class="field"><label for="owner_id">Project owner</label><select id="owner_id" name="owner_id"><option value="">Unassigned</option>{% for user in users %}<option value="{{ user.id }}">{{ user.full_name or user.username }}</option>{% endfor %}</select></div>
+            <div class="field"><label for="priority">Priority</label><select id="priority" name="priority">{% for priority in priorities %}<option value="{{ priority }}" {% if priority == 'normal' %}selected{% endif %}>{{ priority|title }}</option>{% endfor %}</select></div>
+            <div class="field"><label for="start_date">Start date</label><input id="start_date" name="start_date" type="date"></div>
+            <div class="field"><label for="due_date">Target date</label><input id="due_date" name="due_date" type="date"></div>
+            <div class="field wide"><label for="description">Project brief</label><textarea id="description" name="description" placeholder="Scope, outcomes, and useful context"></textarea></div>
+        </div>
+        <div class="form-actions"><a class="button" href="{{ url_for('projects.index') }}">Cancel</a><button class="button primary" type="submit">Create project</button></div>
+    </form>
+</div>
+{% endblock %}
