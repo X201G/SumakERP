@@ -14,6 +14,9 @@
     .panel-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:15px; }
     .panel-head h2 { margin:0; font-size:15px; }
     .panel-sub { margin:4px 0 0; color:var(--theme-muted); font-size:11px; }
+    .checkbox-field { display:flex; align-items:center; gap:9px; min-height:40px; }
+    .checkbox-field input { width:17px; height:17px; accent-color:var(--projects-accent); }
+    .checkbox-field span { color:var(--theme-text); font-size:12px; }
     .icon-button { display:grid; place-items:center; flex:0 0 36px; width:36px; height:36px; border:1px solid var(--theme-border); border-radius:5px; background:transparent; color:var(--theme-text); cursor:pointer; }
     .icon-button:hover { border-color:var(--projects-accent); color:var(--projects-accent); }
     .project-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
@@ -82,7 +85,7 @@
     <section class="panel" id="projectDetailsPanel">
         <div class="panel-head">
             <div><h2>Project details</h2><p class="panel-sub">Scope, owner, priority, and timeline.</p></div>
-            <button class="icon-button" id="editDetailsToggle" type="button" aria-label="Edit project details" title="Edit project details" aria-expanded="false">✎</button>
+            {% if can_edit %}<button class="icon-button" id="editDetailsToggle" type="button" aria-label="Edit project details" title="Edit project details" aria-expanded="false">✎</button>{% endif %}
         </div>
         <div class="project-summary" id="projectSummary">
             <div class="summary-item"><span class="summary-label">Client / department</span><div class="summary-value" id="summaryClient">{{ project.client or 'Not set' }}</div></div>
@@ -91,7 +94,7 @@
             <div class="summary-item"><span class="summary-label">Timeline</span><div class="summary-value" id="summaryTimeline">{{ project.start_date or 'No start date' }} – {{ project.due_date or 'No target date' }}</div></div>
             <div class="summary-item summary-description {% if not project.description %}hidden{% endif %}" id="summaryDescriptionBlock"><span class="summary-label">Project brief</span><div class="summary-value" id="summaryDescription">{{ project.description or '' }}</div></div>
         </div>
-        <form class="hidden" id="projectDetailsForm" method="POST" action="{{ url_for('projects.update_project', project_id=project.id) }}">
+        {% if can_edit %}<form class="hidden" id="projectDetailsForm" method="POST" action="{{ url_for('projects.update_project', project_id=project.id) }}">
             <div class="fields">
                 <div class="field wide"><label for="name">Project name</label><input id="name" name="name" value="{{ project.name }}" maxlength="160" required></div>
                 <div class="field"><label for="client">Client / department</label><input id="client" name="client" value="{{ project.client or '' }}" maxlength="160"></div>
@@ -103,14 +106,31 @@
                 <div class="field wide"><label for="description">Project brief</label><textarea id="description" name="description">{{ project.description or '' }}</textarea></div>
             </div>
             <p class="save-status" id="projectSaveStatus" role="status" aria-live="polite"></p>
-        </form>
+        </form>{% endif %}
+        {% if can_manage_shares or can_edit %}
+        <div class="hidden" id="projectEditActionsPanel">
+            {% if can_manage_shares %}
+            <form method="POST" action="{{ url_for('projects.share_project', project_id=project.id) }}" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--theme-border);">
+                <div class="panel-head"><div><h2>Shared access</h2><p class="panel-sub">Choose Projects users who can access this project.</p></div></div>
+                <div class="fields">
+                    {% for user in users %}
+                    <label class="checkbox-field"><input type="checkbox" name="user_ids" value="{{ user.id }}" {% if user.id in shared_user_ids %}checked{% endif %}><span>{{ user.full_name or user.username }}</span></label>
+                    {% endfor %}
+                </div>
+                <div class="save-row"><button class="button primary" type="submit">Save sharing</button></div>
+            </form>
+            {% endif %}
+            {% if can_edit %}<form method="POST" action="{{ url_for('projects.delete_project', project_id=project.id) }}" onsubmit="return confirm('Delete this project and all its work items?');" style="margin-top:12px; text-align:right;"><button class="button" type="submit">Delete project</button></form>{% endif %}
+        </div>
+        {% endif %}
     </section>
 
     <section class="panel">
         <div class="panel-head">
             <div><h2>Work items</h2><p class="panel-sub" id="workItemSummary">{{ tasks|selectattr('stage', 'equalto', 'completed')|list|length }} of {{ tasks|length }} complete</p></div>
-            <button class="button primary" id="newItemToggle" type="button" aria-expanded="false" aria-controls="newItemForm">＋ New Item</button>
+            {% if can_edit %}<button class="button primary" id="newItemToggle" type="button" aria-expanded="false" aria-controls="newItemForm">＋ New Item</button>{% endif %}
         </div>
+        {% if can_edit %}
         <form class="task-form hidden" id="newItemForm" method="POST" action="{{ url_for('projects.add_task', project_id=project.id) }}">
             <input class="wide" name="title" maxlength="180" placeholder="Task name" required>
             <input name="due_date" type="date" aria-label="Task due date">
@@ -118,6 +138,7 @@
             <textarea class="wide" name="details" placeholder="Task details (optional)"></textarea>
             <div class="task-actions"><button class="button primary" type="submit">Add item</button></div>
         </form>
+        {% endif %}
         {% if tasks %}
         <div class="task-grid" id="taskGrid">
             {% for task in tasks %}
@@ -143,6 +164,7 @@
     const detailsForm = document.getElementById('projectDetailsForm');
     const detailsSummary = document.getElementById('projectSummary');
     const detailsToggle = document.getElementById('editDetailsToggle');
+    const projectEditActionsPanel = document.getElementById('projectEditActionsPanel');
     const saveStatus = document.getElementById('projectSaveStatus');
     const boardLink = document.getElementById('projectBoardLink');
     const newItemToggle = document.getElementById('newItemToggle');
@@ -151,10 +173,11 @@
     let saveTimer = null;
     let saveInFlight = Promise.resolve(true);
 
-    detailsToggle.addEventListener('click', () => {
+    if (detailsToggle) detailsToggle.addEventListener('click', () => {
         const editing = detailsForm.classList.contains('hidden');
         detailsForm.classList.toggle('hidden', !editing);
         detailsSummary.classList.toggle('hidden', editing);
+        if (projectEditActionsPanel) projectEditActionsPanel.classList.toggle('hidden', !editing);
         detailsToggle.textContent = editing ? '×' : '✎';
         detailsToggle.setAttribute('aria-label', editing ? 'Collapse project details' : 'Edit project details');
         detailsToggle.title = editing ? 'Collapse project details' : 'Edit project details';
@@ -162,7 +185,7 @@
         if (editing) detailsForm.querySelector('[name="name"]').focus();
     });
 
-    newItemToggle.addEventListener('click', () => {
+    if (newItemToggle) newItemToggle.addEventListener('click', () => {
         const isHidden = newItemForm.classList.toggle('hidden');
         newItemToggle.setAttribute('aria-expanded', String(!isHidden));
         newItemToggle.textContent = isHidden ? '＋ New Item' : '× Close';
@@ -205,13 +228,13 @@
         return saveInFlight;
     }
 
-    detailsForm.addEventListener('input', () => {
+    if (detailsForm) detailsForm.addEventListener('input', () => {
         detailsAreDirty = true;
         saveStatus.textContent = 'Unsaved changes';
         clearTimeout(saveTimer);
         saveTimer = setTimeout(saveProjectDetails, 500);
     });
-    detailsForm.addEventListener('change', () => {
+    if (detailsForm) detailsForm.addEventListener('change', () => {
         detailsAreDirty = true;
         clearTimeout(saveTimer);
         saveTimer = setTimeout(saveProjectDetails, 250);

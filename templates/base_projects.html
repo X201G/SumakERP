@@ -54,6 +54,12 @@
         .nav-item { display: block; padding: 11px 20px; border-left: 3px solid transparent; color: rgba(255,255,255,.72); font-size: 13.5px; }
         .nav-item:hover, .nav-item.active { background: rgba(255,255,255,.08); color: #fff; }
         .nav-item.active { border-left-color: #91d5c9; }
+        .project-flow { position: relative; margin: 0 14px 8px 20px; padding-left: 16px; }
+        .project-flow::before { position: absolute; top: -12px; right: auto; bottom: 16px; left: 0; border-left: 1px solid rgba(255,255,255,.38); content: ''; }
+        .project-flow-node { position: relative; display: block; min-width: 0; min-height: 32px; padding: 8px 7px; color: rgba(255,255,255,.58); font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+        .project-flow-node::before { position: absolute; top: 16px; left: -16px; width: 12px; border-top: 1px solid rgba(255,255,255,.38); content: ''; }
+        .project-flow-node.active { color: #fff; font-weight: 700; }
+        .project-flow-node:not(.active):hover { color: rgba(255,255,255,.86); }
         .sidebar-bottom { margin-top: auto; padding: 16px; }
         .theme-toggle { width: 100%; padding: 9px 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; background: transparent; color: white; cursor: pointer; text-align: left; }
         .main { width: calc(100% - 232px); min-height: 100vh; margin-left: 232px; transition: margin-left .18s ease, width .18s ease; }
@@ -91,6 +97,13 @@
         </a>
         <div class="nav-label">WORKSPACE</div>
         <a href="/projects" class="nav-item {% if request.path == '/projects' %}active{% endif %}">▦ &nbsp; Project board</a>
+        {% if project is defined %}
+        <div class="project-flow">
+            {% for sidebar_project in sidebar_projects %}
+            <a class="project-flow-node{% if sidebar_project.id == project.id %} active{% endif %}" href="{{ url_for('projects.detail', project_id=sidebar_project.id) }}"{% if sidebar_project.id == project.id %} aria-current="page"{% endif %}>{{ sidebar_project.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% if session.role == 'admin' %}
         <div class="nav-label">ADMINISTRATION</div>
         <a href="/users" class="nav-item {% if request.path.startswith('/users') %}active{% endif %}">♙ &nbsp; Users</a>

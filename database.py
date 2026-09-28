@@ -1300,6 +1300,22 @@ def create_tables():
         )
     ''')
     cursor.execute('''
+        CREATE TABLE IF NOT EXISTS project_user_shares (
+        project_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        shared_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (project_id, user_id),
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (shared_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_project_user_shares_user ON project_user_shares(user_id)')
+    cursor.execute(
+        "UPDATE users SET role = 'user' WHERE system = 'projects' AND role NOT IN ('admin', 'user', 'external')"
+    )
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS project_tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL,

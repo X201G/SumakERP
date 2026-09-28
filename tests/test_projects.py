@@ -107,8 +107,10 @@ def test_project_board_stage_detail_and_tasks(client):
     detail = client.get(f"/projects/{project_id}")
     assert detail.status_code == 200
     assert b"Confirm site access" in detail.data
+    assert f'<a class="project-flow-node active" href="/projects/{project_id}" aria-current="page">Warehouse rollout</a>'.encode() in detail.data
     assert b"Completed" in detail.data
     assert b'class="hidden" id="projectDetailsForm"' in detail.data
+    assert b'class="hidden" id="projectEditActionsPanel"' in detail.data
     assert b'aria-label="Edit project details"' in detail.data
     assert b'aria-expanded="false" aria-controls="newItemForm">\xef\xbc\x8b New Item' in detail.data
     assert b'class="task-form hidden" id="newItemForm"' in detail.data
@@ -133,6 +135,7 @@ def test_project_board_stage_detail_and_tasks(client):
     response = client.get(item_url)
     assert response.status_code == 200
     assert b'name="stage"' in response.data
+    assert f'<a class="project-flow-node active" href="/projects/{project_id}" aria-current="page">Warehouse rollout</a>'.encode() in response.data
     response = client.post(
         item_url,
         data={
@@ -257,6 +260,28 @@ def test_database_migrates_existing_project_tasks_to_stages(tmp_path):
     assert task["is_complete"] == 1
 
 
+def test_database_migrates_legacy_project_roles_to_user(tmp_path):
+    database.DATABASE = str(tmp_path / "legacy_project_roles.db")
+    database.create_tables()
+    conn = database.get_connection()
+    conn.executemany(
+        "INSERT INTO users (username, password_hash, role, system) VALUES (?, ?, ?, 'projects')",
+        [
+            ("legacy_staff", generate_password_hash("legacy-password"), "sales"),
+            ("projects_admin", generate_password_hash("admin-password"), "admin"),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    database.create_tables()
+
+    conn = database.get_connection()
+    roles = dict(conn.execute("SELECT username, role FROM users WHERE system = 'projects'").fetchall())
+    conn.close()
+    assert roles == {"legacy_staff": "user", "projects_admin": "admin"}
+
+
 def test_projects_users_page_uses_separate_list_add_and_edit_screens(client):
     conn = database.get_connection()
     cursor = conn.cursor()
@@ -281,14 +306,152 @@ def test_projects_users_page_uses_separate_list_add_and_edit_screens(client):
 
     response = client.post(
         "/users/add",
-        data={"username": "project_staff", "full_name": "Project Staff", "role": "sales", "password": "staff-pass-9"},
+        data={"username": "project_staff", "full_name": "Project Staff", "role": "user", "password": "staff-pass-9"},
     )
     assert response.status_code == 302
     conn = database.get_connection()
     staff = conn.execute("SELECT id FROM users WHERE username = ?", ("project_staff",)).fetchone()
+    assert conn.execute("SELECT role FROM users WHERE id = ?", (staff["id"],)).fetchone()["role"] == "user"
     conn.close()
 
     edit_page = client.get(f"/users/edit/{staff['id']}")
     assert edit_page.status_code == 200
     assert b"Project Staff" in edit_page.data
     assert b"Active account" in edit_page.data
+    assert b"External (read-only)" in add_page.data
+
+
+def test_projects_are_private_until_shared_and_external_users_are_read_only(client):
+    conn = database.get_connection()
+    conn.executemany(
+        "INSERT INTO users (username, password_hash, full_name, role, system) VALUES (?, ?, ?, ?, 'projects')",
+        [
+            ("project_owner", generate_password_hash("owner-password"), "Project Owner", "user"),
+            ("project_peer", generate_password_hash("peer-password"), "Project Peer", "user"),
+            ("project_external", generate_password_hash("external-password"), "Project External", "external"),
+            ("project_other", generate_password_hash("other-password"), "Other User", "user"),
+        ],
+    )
+    owner_id = conn.execute("SELECT id FROM users WHERE username = 'project_owner'").fetchone()["id"]
+    peer_id = conn.execute("SELECT id FROM users WHERE username = 'project_peer'").fetchone()["id"]
+    external_id = conn.execute("SELECT id FROM users WHERE username = 'project_external'").fetchone()["id"]
+    other_id = conn.execute("SELECT id FROM users WHERE username = 'project_other'").fetchone()["id"]
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO projects (name, created_by) VALUES (?, ?)", ("Private project", owner_id))
+    project_id = cursor.lastrowid
+    cursor.execute("INSERT INTO projects (name, created_by) VALUES (?, ?)", ("Another shared project", owner_id))
+    another_project_id = cursor.lastrowid
+    cursor.execute(
+        "INSERT INTO project_tasks (project_id, title, details, created_by) VALUES (?, ?, ?, ?)",
+        (project_id, "Private work item", "Read-only context", owner_id),
+    )
+    task_id = cursor.lastrowid
+    cursor.execute("INSERT INTO project_task_notes (task_id, note, created_by) VALUES (?, ?, ?)", (task_id, "Shared note", owner_id))
+    cursor.execute("INSERT INTO projects (name, created_by) VALUES (?, ?)", ("Other private project", other_id))
+    other_project_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    login_as(client, "project_owner", "projects")
+    board = client.get("/projects")
+    assert b"Private project" in board.data
+    assert b"Other private project" not in board.data
+    assert client.post(
+        f"/projects/{project_id}/share",
+        data={"user_ids": [str(peer_id), str(external_id)]},
+    ).status_code == 302
+    assert client.post(
+        f"/projects/{another_project_id}/share",
+        data={"user_ids": [str(peer_id)]},
+    ).status_code == 302
+
+    login_as(client, "project_peer", "projects")
+    peer_detail = client.get(f"/projects/{project_id}")
+    assert peer_detail.status_code == 200
+    assert f'class="project-flow-node active" href="/projects/{project_id}" aria-current="page">Private project</a>'.encode() in peer_detail.data
+    assert f'class="project-flow-node" href="/projects/{another_project_id}">Another shared project</a>'.encode() in peer_detail.data
+    assert client.get(f"/projects/{other_project_id}").status_code == 404
+    assert b"Private project" in client.get("/projects").data
+    response = client.post(
+        f"/projects/{project_id}/update",
+        data={
+            "name": "Updated by shared user",
+            "stage": "planning",
+            "priority": "normal",
+            "start_date": "",
+            "due_date": "",
+        },
+    )
+    assert response.status_code == 302
+    conn = database.get_connection()
+    assert conn.execute("SELECT name FROM projects WHERE id = ?", (project_id,)).fetchone()["name"] == "Updated by shared user"
+    conn.close()
+
+    login_as(client, "project_external", "projects")
+    board = client.get("/projects")
+    assert b"Updated by shared user" in board.data
+    assert b"Other private project" not in board.data
+    detail = client.get(f"/projects/{project_id}")
+    assert detail.status_code == 200
+    assert b"Private work item" in detail.data
+    assert b'id="editDetailsToggle"' not in detail.data
+    assert b'id="newItemToggle"' not in detail.data
+    assert b"Shared access" not in detail.data
+    item_url = f"/projects/{project_id}/items/{task_id}"
+    item_detail = client.get(item_url)
+    assert item_detail.status_code == 200
+    assert b"Shared note" in item_detail.data
+    assert b"Add a note" not in item_detail.data
+    assert client.post(item_url, data={"title": "Changed", "stage": "completed"}).status_code == 403
+    assert client.post(f"{item_url}/notes", data={"note": "Blocked"}).status_code == 403
+    assert client.post(f"/projects/{project_id}/tasks", data={"title": "Blocked"}).status_code == 403
+    assert client.post(f"/projects/{project_id}/tasks/{task_id}/toggle").status_code == 403
+    assert client.post(f"/projects/{project_id}/stage", json={"stage": "completed"}).status_code == 403
+    assert client.post(f"/projects/{project_id}/tasks/{task_id}/stage", json={"stage": "completed"}).status_code == 403
+    assert client.post(f"{item_url}/delete").status_code == 403
+    assert client.post(f"/projects/{project_id}/delete").status_code == 403
+    assert client.post(f"/projects/{project_id}/share", data={"user_ids": [str(other_id)]}).status_code == 403
+
+
+def test_users_can_delete_projects_and_work_items_they_can_access(client):
+    conn = database.get_connection()
+    conn.executemany(
+        "INSERT INTO users (username, password_hash, role, system) VALUES (?, ?, ?, 'projects')",
+        [
+            ("delete_owner", generate_password_hash("owner-password"), "user"),
+            ("delete_peer", generate_password_hash("peer-password"), "user"),
+        ],
+    )
+    owner_id = conn.execute("SELECT id FROM users WHERE username = 'delete_owner'").fetchone()["id"]
+    peer_id = conn.execute("SELECT id FROM users WHERE username = 'delete_peer'").fetchone()["id"]
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO projects (name, created_by) VALUES ('Shared for deletion', ?)", (owner_id,))
+    shared_project_id = cursor.lastrowid
+    cursor.execute("INSERT INTO project_tasks (project_id, title, created_by) VALUES (?, 'Delete this item', ?)", (shared_project_id, owner_id))
+    task_id = cursor.lastrowid
+    cursor.execute("INSERT INTO projects (name, created_by) VALUES ('Owned for deletion', ?)", (owner_id,))
+    owned_project_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    login_as(client, "delete_owner", "projects")
+    assert client.post(f"/projects/{shared_project_id}/share", data={"user_ids": [str(peer_id)]}).status_code == 302
+    login_as(client, "delete_peer", "projects")
+    assert client.post(f"/projects/{shared_project_id}/items/{task_id}/delete").status_code == 302
+    assert client.get(f"/projects/{shared_project_id}/items/{task_id}").status_code == 404
+    assert client.post(f"/projects/{shared_project_id}/delete").status_code == 302
+    assert client.get(f"/projects/{shared_project_id}").status_code == 404
+
+    login_as(client, "delete_owner", "projects")
+    assert client.post(f"/projects/{owned_project_id}/delete").status_code == 302
+    assert client.get(f"/projects/{owned_project_id}").status_code == 404
+
+    login_as(client, "delete_peer", "projects")
+    response = client.post("/projects/new", data={"name": "Peer-owned project"})
+    assert response.status_code == 302
+    conn = database.get_connection()
+    created_by = conn.execute(
+        "SELECT created_by FROM projects WHERE name = 'Peer-owned project'"
+    ).fetchone()["created_by"]
+    assert created_by == peer_id
+    conn.close()

@@ -6,6 +6,7 @@ from database import get_connection
 auth = Blueprint("auth", __name__)
 
 ROLES = ["admin", "sales", "purchase", "store", "accounts"]
+PROJECT_ROLES = ["admin", "user", "external"]
 
 # ============================================
 # ACCESS CONTROL HELPERS
@@ -142,7 +143,8 @@ def users_list():
     projects_setup_available = cursor.fetchone()[0] == 0
     conn.close()
     template = "projects/users.html" if system == "projects" else "auth/users.html"
-    return render_template(template, users=users, roles=ROLES, system=system,
+    roles = PROJECT_ROLES if system == "projects" else ROLES
+    return render_template(template, users=users, roles=roles, system=system,
                            projects_setup_available=projects_setup_available)
 
 @auth.route("/users/setup-projects", methods=["GET", "POST"])
@@ -191,6 +193,8 @@ def add_user():
         role = request.form.get("role") or "staff"
         password = request.form["password"]
         system = session.get("system", "distribution")
+        if system == "projects":
+            role = role if role in PROJECT_ROLES else "user"
         conn = get_connection()
         cursor = conn.cursor()
         try:
@@ -206,7 +210,7 @@ def add_user():
         return redirect(url_for("auth.users_list"))
     system = session.get("system", "distribution")
     if system == "projects":
-        return render_template("projects/user_form.html", system=system, roles=ROLES, editing=False)
+        return render_template("projects/user_form.html", system=system, roles=PROJECT_ROLES, editing=False)
     return render_template("auth/users.html", users=[], roles=ROLES, system=system)
 
 @auth.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
@@ -218,6 +222,8 @@ def edit_user(user_id):
     if request.method == "POST":
         full_name = request.form.get("full_name")
         role = request.form.get("role") or "staff"
+        if system == "projects":
+            role = role if role in PROJECT_ROLES else "user"
         is_active = 1 if request.form.get("is_active") else 0
         password = request.form.get("password")
         if password:
@@ -241,7 +247,7 @@ def edit_user(user_id):
         flash("User not found.", "danger")
         return redirect(url_for("auth.users_list"))
     if system == "projects":
-        return render_template("projects/user_form.html", user=user, roles=ROLES, editing=True, system=system)
+        return render_template("projects/user_form.html", user=user, roles=PROJECT_ROLES, editing=True, system=system)
     return render_template("auth/users.html", users=[], user=user, roles=ROLES, editing=True, system=system)
 
 @auth.route("/users/delete/<int:user_id>")

@@ -40,7 +40,7 @@
             <div class="field wide"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required></div>
             {% endif %}
             <div class="field"><label for="full_name">Full name</label><input id="full_name" name="full_name" value="{{ user.full_name or '' if editing else '' }}" autocomplete="name"></div>
-            <div class="field"><label for="role">Role</label><select id="role" name="role">{% for role in roles %}<option value="{{ role }}" {% if editing and user.role == role %}selected{% endif %}>{{ role|title }}</option>{% endfor %}</select></div>
+            <div class="field"><label for="role">Role</label><select id="role" name="role">{% for role in roles %}<option value="{{ role }}" {% if editing and user.role == role %}selected{% endif %}>{% if role == 'user' %}User (limited access){% elif role == 'external' %}External (read-only){% else %}{{ role|title }}{% endif %}</option>{% endfor %}</select></div>
             <div class="field"><label for="password">{{ 'New password' if editing else 'Password' }}</label><input id="password" name="password" type="password" autocomplete="new-password" {% if not editing %}required minlength="8"{% endif %} placeholder="{{ 'Leave blank to keep current password' if editing else 'At least 8 characters' }}"></div>
             {% if editing %}
             <div class="checkbox-field"><input id="is_active" type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}><label for="is_active">Active account</label></div>

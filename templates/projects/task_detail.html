@@ -55,7 +55,7 @@
 <div class="layout">
     <section class="panel">
         <h2>Work item details</h2>
-        <form method="POST">
+        {% if can_edit %}<form method="POST">
             <div class="fields">
                 <div class="field wide"><label for="title">Item name</label><input id="title" name="title" maxlength="180" value="{{ task.title }}" required></div>
                 <div class="field"><label for="stage">Stage</label><select id="stage" name="stage">{% for stage in task_stages %}<option value="{{ stage }}" {% if task.stage == stage %}selected{% endif %}>{{ task_stage_labels[stage] }}</option>{% endfor %}</select></div>
@@ -63,14 +63,22 @@
                 <div class="field wide"><label for="details">Details</label><textarea id="details" name="details">{{ task.details or '' }}</textarea></div>
             </div>
             <div class="form-actions"><a class="button" href="{{ url_for('projects.detail', project_id=project.id) }}">Cancel</a><button class="button primary" type="submit">Save changes</button></div>
-        </form>
+        </form>{% else %}
+        <div class="fields">
+            <div class="field wide"><label>Item name</label><div>{{ task.title }}</div></div>
+            <div class="field"><label>Stage</label><div>{{ task_stage_labels[task.stage] }}</div></div>
+            <div class="field"><label>Due date</label><div>{{ task.due_date or 'Not set' }}</div></div>
+            <div class="field wide"><label>Details</label><div style="white-space:pre-wrap">{{ task.details or 'No details' }}</div></div>
+        </div>
+        {% endif %}
+        {% if can_edit %}<form method="POST" action="{{ url_for('projects.delete_task', project_id=project.id, task_id=task.id) }}" onsubmit="return confirm('Delete this work item and its notes?');"><div class="form-actions"><button class="button" type="submit">Delete work item</button></div></form>{% endif %}
     </section>
     <section class="panel">
         <h2>Notes</h2>
-        <form class="note-form" method="POST" action="{{ url_for('projects.add_task_note', project_id=project.id, task_id=task.id) }}">
+        {% if can_edit %}<form class="note-form" method="POST" action="{{ url_for('projects.add_task_note', project_id=project.id, task_id=task.id) }}">
             <div class="field"><label for="note">Add a note</label><textarea id="note" name="note" placeholder="Record a conversation, update, or next step" required></textarea></div>
             <div class="form-actions"><button class="button primary" type="submit">Add note</button></div>
-        </form>
+        </form>{% endif %}
         <div class="note-list">
             {% for note in notes %}
             <article class="note">

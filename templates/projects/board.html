@@ -54,7 +54,7 @@
         <h1>Projects</h1>
         <p>Work in progress, organized by stage.</p>
     </div>
-    <a class="primary-action" href="{{ url_for('projects.create_project') }}">＋ New project</a>
+    {% if can_edit %}<a class="primary-action" href="{{ url_for('projects.create_project') }}">＋ New project</a>{% endif %}
 </div>
 <div class="summary">
     <span><strong>{{ total_projects }}</strong> total</span>
@@ -70,7 +70,7 @@
             <span class="stage-count">{{ projects_by_stage[stage]|length }}</span>
         </div>
         {% for project in projects_by_stage[stage] %}
-        <a class="project-card" draggable="true" data-project-id="{{ project.id }}" data-stage="{{ stage }}" href="{{ url_for('projects.detail', project_id=project.id) }}">
+        <a class="project-card" draggable="{{ 'true' if can_edit else 'false' }}" data-project-id="{{ project.id }}" data-stage="{{ stage }}" href="{{ url_for('projects.detail', project_id=project.id) }}">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                 <h3>{{ project.name }}</h3>
                 <span class="priority">{{ project.priority }}</span>
