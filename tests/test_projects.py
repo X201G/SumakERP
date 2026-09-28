@@ -220,6 +220,7 @@ def test_login_chooser_offers_projects(client):
     response = client.get("/login")
     assert response.status_code == 200
     assert b"/login?system=projects" in response.data
+    assert b'https://sumak-visits.web.app/" class="system-btn fuel-btn"' in response.data
 
 
 def test_projects_login_page_has_projects_heading(client):
