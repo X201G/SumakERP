@@ -1,15 +1,43 @@
-{% extends "base_projects.html" if session.get('system') == 'projects' else "base.html" %}
+{% extends "base_projects.html" if session.get('system') == 'projects' else "base_crm.html" if session.get('system') == 'crm' else "base.html" %}
 
 {% block title %}Users - SUMAK ERP{% endblock %}
 
 {% block page_title %}Users{% endblock %}
 
 {% block content %}
+{% if system == 'crm' %}
+<style>
+    .crm-users-page table { width: 100%; margin-top: 24px; border-collapse: collapse; border: 1px solid var(--crm-line); border-radius: 12px; background: var(--crm-paper); overflow: hidden; }
+    .crm-users-page th { padding: 12px 24px; border-bottom: 1px solid var(--crm-line); background: #edf4ee; color: var(--crm-muted); font-size: 12px; font-weight: 600; text-align: left; text-transform: uppercase; }
+    .crm-users-page td { padding: 14px 24px; border-bottom: 1px solid var(--crm-line); color: var(--crm-ink); font-size: 14px; }
+    .crm-users-page tbody tr:hover { background: #f4f8f3; }
+    .crm-users-page .badge { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 12px; font-size: 11px; font-weight: 650; }
+    .crm-users-page .badge-info { background: #e5f0e8; color: #286b4b; }
+    .crm-users-page .badge-neutral { background: #eef0ed; color: #58645d; }
+    .crm-users-page .badge-success { background: #e5f3e8; color: #286b4b; }
+    .crm-users-page .badge-warning { background: #fff1dc; color: #8a5a18; }
+    .crm-users-page form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 24px 0; padding: 24px; border: 1px solid var(--crm-line); border-radius: 12px; background: var(--crm-paper); }
+    .crm-users-page form > div { flex: 1 1 180px; }
+    .crm-users-page form label { display: block; color: var(--crm-ink); font-size: 12px; font-weight: 600; }
+    .crm-users-page form input:not([type="checkbox"]), .crm-users-page form select { width: 100%; min-height: 40px; padding: 9px 12px; border: 1px solid #cfd9d0; border-radius: 8px; background: #f7f9f6; color: var(--crm-ink); font-size: 14px; }
+    .crm-users-page form input:focus, .crm-users-page form select:focus { border-color: var(--crm-green); outline: 2px solid #286b4b22; }
+    .crm-users-page form button { min-height: 40px; padding: 10px 22px; border: 0; border-radius: 8px; background: var(--crm-green); color: white; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .crm-users-page form button:hover { background: #1c5439; }
+    .crm-users-page form a { color: var(--crm-green); }
+    @media (max-width: 620px) {
+        .crm-users-page { overflow-x: auto; }
+        .crm-users-page table { min-width: 580px; }
+        .crm-users-page th, .crm-users-page td { padding: 10px 12px; }
+        .crm-users-page form { padding: 16px; }
+    }
+</style>
+{% endif %}
 
+<div class="{% if system == 'crm' %}crm-users-page{% endif %}">
 <p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">{{ system|title }}-only logins. Admins can manage the users for this system without affecting the other portal.</p>
 
 <a href="/users/add" style="display: inline-block; margin-bottom: 16px; background: #e85d04; color: white; padding: 10px 22px; border-radius: 8px; font-size: 13.5px; font-weight: 600;">+ Add User</a>
-{% if projects_setup_available and system != 'projects' %}
+{% if projects_setup_available and system == 'distribution' %}
 <a href="/users/setup-projects" style="display: inline-block; margin: 0 0 16px 8px; background: #287a72; color: white; padding: 10px 22px; border-radius: 8px; font-size: 13.5px; font-weight: 600;">Set up Projects portal</a>
 {% endif %}
 
@@ -104,5 +132,6 @@
     <button type="submit">Add User</button>
 </form>
 {% endif %}
+</div>
 
 {% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base_crm.html" %}
+{% block title %}{{ opportunity.title }} - Customer CRM{% endblock %}
+{% block page_title %}Opportunity{% endblock %}
+{% block content %}
+<style>
+    .crm-detail { --ink: #25352e; --muted: #69776f; --line: #dce3dc; --green: #286b4b; color: var(--ink); }
+    .crm-back { display: inline-block; margin-bottom: 14px; color: var(--green); font-size: 12px; text-decoration: none; }
+    .crm-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 17px; margin-bottom: 20px; }
+    .crm-detail-head h2 { font-size: 23px; overflow-wrap: anywhere; margin: 0 0 7px; }
+    .crm-detail-head p { color: var(--muted); font-size: 13px; }
+    .crm-detail-head a { color: var(--green); }
+    .crm-stage-pill { padding: 6px 9px; background: #edf4ee; border-radius: 3px; font-size: 12px; white-space: nowrap; }
+    .crm-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-block: 1px solid var(--line); margin-bottom: 23px; }
+    .crm-kpi { padding: 12px 12px 12px 0; }
+    .crm-kpi + .crm-kpi { border-left: 1px solid var(--line); padding-left: 14px; }
+    .crm-kpi span, .crm-kpi strong { display: block; }
+    .crm-kpi span { color: var(--muted); font-size: 10px; text-transform: uppercase; margin-bottom: 5px; }
+    .crm-kpi strong { font-size: 14px; overflow-wrap: anywhere; }
+    .crm-detail-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr); gap: 30px; align-items: start; }
+    .crm-section { border-top: 2px solid #8ba092; padding-top: 12px; margin-bottom: 24px; }
+    .crm-section h3 { font-size: 15px; margin-bottom: 12px; }
+    .crm-update-grid, .crm-activity-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .crm-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+    .crm-field.full { grid-column: 1 / -1; }
+    .crm-field label { font-size: 11px; font-weight: 650; }
+    .crm-field input, .crm-field select, .crm-field textarea { width: 100%; min-height: 37px; padding: 8px; border: 1px solid #cfd9d0; border-radius: 4px; background: white; color: var(--ink); font: inherit; }
+    .crm-field textarea { min-height: 74px; resize: vertical; }
+    .crm-submit { min-height: 38px; border: 0; border-radius: 4px; background: var(--green); color: white; padding: 8px 13px; font-weight: 650; cursor: pointer; }
+    .crm-submit:hover { background: #1c5439; }
+    .crm-timeline { border-left: 1px solid var(--line); margin-left: 5px; padding-left: 16px; }
+    .crm-activity { position: relative; padding: 0 0 17px; }
+    .crm-activity::before { content: ""; position: absolute; left: -21px; top: 4px; width: 8px; height: 8px; border: 2px solid white; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 1px var(--green); }
+    .crm-activity-top { display: flex; justify-content: space-between; gap: 9px; margin-bottom: 4px; }
+    .crm-activity-top strong { font-size: 12px; }
+    .crm-activity-top time, .crm-activity-meta { color: var(--muted); font-size: 11px; }
+    .crm-activity p { font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0; }
+    .crm-empty { color: var(--muted); font-size: 12px; }
+    .crm-records { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .crm-records th, .crm-records td { padding: 8px 5px; border-bottom: 1px solid #e9ede9; text-align: left; }
+    .crm-records th { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+    .crm-records a { color: var(--green); }
+    @media(max-width: 760px) { .crm-detail-grid { grid-template-columns: 1fr; } .crm-kpis { grid-template-columns: 1fr 1fr; } .crm-kpi:nth-child(3) { border-left: 0; padding-left: 0; } }
+    @media(max-width: 480px) { .crm-detail-head { flex-direction: column; } .crm-update-grid, .crm-activity-grid { grid-template-columns: 1fr; } .crm-field.full { grid-column: auto; } }
+</style>
+<main class="crm-detail">
+    <a class="crm-back" href="{{ url_for('crm.index') }}">← All opportunities</a>
+    <header class="crm-detail-head">
+        <div>
+            <h2>{{ opportunity.title }}</h2>
+            <p><a href="/customers/edit/{{ opportunity.customer_id }}">{{ opportunity.customer_name }}</a>{% if opportunity.customer_phone %} · {{ opportunity.customer_phone }}{% endif %}{% if opportunity.customer_email %} · {{ opportunity.customer_email }}{% endif %}</p>
+        </div>
+        <span class="crm-stage-pill">{{ stage_labels.get(opportunity.stage, opportunity.stage) }}</span>
+    </header>
+
+    <section class="crm-kpis">
+        <div class="crm-kpi"><span>Potential</span><strong>₹{{ "{:,.2f}".format(opportunity.potential_value or 0) }}</strong></div>
+        <div class="crm-kpi"><span>Product</span><strong>{{ opportunity.product_name or "Not selected" }}</strong></div>
+        <div class="crm-kpi"><span>Quotation</span><strong>{% if opportunity.quotation_no %}<a href="/sales-quotations/view/{{ opportunity.quotation_id }}">{{ opportunity.quotation_no }}</a>{% else %}Not linked{% endif %}</strong></div>
+        <div class="crm-kpi"><span>Owner</span><strong>{{ opportunity.owner_name or "Unassigned" }}</strong></div>
+    </section>
+
+    <div class="crm-detail-grid">
+        <div>
+            <section class="crm-section">
+                <h3>Opportunity and purchase order</h3>
+                <form method="post" action="{{ url_for('crm.update_opportunity', opportunity_id=opportunity.id) }}">
+                    <div class="crm-update-grid">
+                        <div class="crm-field full"><label for="title">Opportunity</label><input id="title" name="title" required value="{{ opportunity.title }}"></div>
+                        <div class="crm-field"><label for="stage">Outcome and stage</label><select id="stage" name="stage">{% for stage in stages %}<option value="{{ stage }}" {% if opportunity.stage == stage %}selected{% endif %}>{{ stage_labels[stage] }}</option>{% endfor %}</select></div>
+                        <div class="crm-field"><label for="potential_value">Potential value (₹)</label><input id="potential_value" name="potential_value" type="number" min="0" step="0.01" value="{{ opportunity.potential_value or 0 }}"></div>
+                        <div class="crm-field"><label for="product_id">Product</label><select id="product_id" name="product_id"><option value="">Not selected</option>{% for product in products %}<option value="{{ product.id }}" {% if opportunity.product_id == product.id %}selected{% endif %}>{{ product.product_name }}</option>{% endfor %}</select></div>
+                        <div class="crm-field"><label for="owner_id">Owner</label><select id="owner_id" name="owner_id">{% for user in users %}<option value="{{ user.id }}" {% if opportunity.owner_id == user.id %}selected{% endif %}>{{ user.full_name or user.username }}</option>{% endfor %}</select></div>
+                        <div class="crm-field"><label for="expected_close_date">Expected close</label><input id="expected_close_date" name="expected_close_date" type="date" value="{{ opportunity.expected_close_date or '' }}"></div>
+                        <div class="crm-field"><label for="next_follow_up">Next follow-up</label><input id="next_follow_up" name="next_follow_up" type="date" value="{{ opportunity.next_follow_up or '' }}"></div>
+                        <div class="crm-field"><label for="customer_po_no">Customer PO number</label><input id="customer_po_no" name="customer_po_no" value="{{ opportunity.customer_po_no or '' }}" placeholder="Enter when received"></div>
+                        <div class="crm-field"><label for="po_status">PO status</label><select id="po_status" name="po_status">{% for status in po_statuses %}<option value="{{ status }}" {% if opportunity.po_status == status %}selected{% endif %}>{{ po_status_labels[status] }}</option>{% endfor %}</select></div>
+                        <div class="crm-field full"><label for="notes">Potential and deal context</label><textarea id="notes" name="notes">{{ opportunity.notes or '' }}</textarea></div>
+                        <div class="crm-field full"><button class="crm-submit" type="submit">Save opportunity</button></div>
+                    </div>
+                </form>
+            </section>
+
+            <section class="crm-section">
+                <h3>Log a visit, trial or touchpoint</h3>
+                <form method="post" action="{{ url_for('crm.add_activity', opportunity_id=opportunity.id) }}">
+                    <div class="crm-activity-grid">
+                        <div class="crm-field"><label for="activity_type">Activity</label><select id="activity_type" name="activity_type">{% for activity_type in activity_types %}<option value="{{ activity_type }}">{{ activity_labels[activity_type] }}</option>{% endfor %}</select></div>
+                        <div class="crm-field"><label for="activity_date">Date</label><input id="activity_date" name="activity_date" type="date" value="{{ today }}" required></div>
+                        <div class="crm-field"><label for="activity_product_id">Product tried / discussed</label><select id="activity_product_id" name="product_id"><option value="">Use opportunity product</option>{% for product in products %}<option value="{{ product.id }}" {% if opportunity.product_id == product.id %}selected{% endif %}>{{ product.product_name }}</option>{% endfor %}</select></div>
+                        <div class="crm-field"><label for="outcome">Outcome</label><input id="outcome" name="outcome" placeholder="Interested, sample requested…"></div>
+                        <div class="crm-field"><label for="activity_follow_up">Next follow-up</label><input id="activity_follow_up" name="next_follow_up" type="date"></div>
+                        <div class="crm-field full"><label for="activity_notes">Notes</label><textarea id="activity_notes" name="notes" required placeholder="What happened? Keep it brief."></textarea></div>
+                        <div class="crm-field full"><button class="crm-submit" type="submit">＋ Log activity</button></div>
+                    </div>
+                </form>
+            </section>
+        </div>
+
+        <aside>
+            <section class="crm-section">
+                <h3>Activity history</h3>
+                {% if activities %}
+                <div class="crm-timeline">
+                    {% for activity in activities %}
+                    <article class="crm-activity">
+                        <div class="crm-activity-top"><strong>{{ activity_labels.get(activity.activity_type, activity.activity_type) }}</strong><time>{{ activity.activity_date|crm_date }}</time></div>
+                        <div class="crm-activity-meta">{{ activity.author_name or 'Team' }}{% if activity.product_name %} · {{ activity.product_name }}{% endif %}{% if activity.outcome %} · {{ activity.outcome }}{% endif %}</div>
+                        <p>{{ activity.notes }}</p>
+                        {% if activity.next_follow_up %}<div class="crm-activity-meta">Follow up: {{ activity.next_follow_up|crm_date }}</div>{% endif %}
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}<p class="crm-empty">No activity logged yet.</p>{% endif %}
+            </section>
+
+            <section class="crm-section">
+                <h3>Customer quotations</h3>
+                {% if customer_quotations %}
+                <table class="crm-records"><thead><tr><th>Quote</th><th>Status</th><th>Value</th></tr></thead><tbody>
+                {% for quote in customer_quotations %}<tr><td><a href="/sales-quotations/view/{{ quote.id }}">{{ quote.quotation_no }}</a><br>{{ quote.quotation_date|crm_date }}</td><td>{{ quote.status }}</td><td>₹{{ "{:,.0f}".format(quote.total_amount or 0) }}</td></tr>{% endfor %}
+                </tbody></table>
+                {% else %}<p class="crm-empty">No quotations for this customer.</p>{% endif %}
+            </section>
+
+            <section class="crm-section">
+                <h3>Customer orders and PO status</h3>
+                {% if customer_orders %}
+                <table class="crm-records"><thead><tr><th>Order</th><th>Customer PO</th><th>Status</th></tr></thead><tbody>
+                {% for order in customer_orders %}<tr><td>{{ order.order_no }}<br>{{ order.order_date|crm_date }}</td><td>{{ order.po_no or '—' }}</td><td>{{ order.status }}</td></tr>{% endfor %}
+                </tbody></table>
+                {% else %}<p class="crm-empty">No sales orders for this customer yet.</p>{% endif %}
+            </section>
+        </aside>
+    </div>
+</main>
+{% endblock %}

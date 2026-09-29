@@ -114,6 +114,8 @@ def login():
             return redirect(url_for("manufacturing.index"))
         if system == "projects":
             return redirect(url_for("projects.index"))
+        if system == "crm":
+            return redirect(url_for("crm.index"))
         return redirect(url_for("index"))
 
     system = request.args.get("system")
@@ -143,7 +145,7 @@ def users_list():
     projects_setup_available = cursor.fetchone()[0] == 0
     conn.close()
     template = "projects/users.html" if system == "projects" else "auth/users.html"
-    roles = PROJECT_ROLES if system == "projects" else ROLES
+    roles = PROJECT_ROLES if system in ("projects", "crm") else ROLES
     return render_template(template, users=users, roles=roles, system=system,
                            projects_setup_available=projects_setup_available)
 
@@ -193,7 +195,7 @@ def add_user():
         role = request.form.get("role") or "staff"
         password = request.form["password"]
         system = session.get("system", "distribution")
-        if system == "projects":
+        if system in ("projects", "crm"):
             role = role if role in PROJECT_ROLES else "user"
         conn = get_connection()
         cursor = conn.cursor()
@@ -209,9 +211,10 @@ def add_user():
         conn.close()
         return redirect(url_for("auth.users_list"))
     system = session.get("system", "distribution")
+    roles = PROJECT_ROLES if system in ("projects", "crm") else ROLES
     if system == "projects":
-        return render_template("projects/user_form.html", system=system, roles=PROJECT_ROLES, editing=False)
-    return render_template("auth/users.html", users=[], roles=ROLES, system=system)
+        return render_template("projects/user_form.html", system=system, roles=roles, editing=False)
+    return render_template("auth/users.html", users=[], roles=roles, system=system)
 
 @auth.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
 @roles_required("admin")
@@ -222,7 +225,7 @@ def edit_user(user_id):
     if request.method == "POST":
         full_name = request.form.get("full_name")
         role = request.form.get("role") or "staff"
-        if system == "projects":
+        if system in ("projects", "crm"):
             role = role if role in PROJECT_ROLES else "user"
         is_active = 1 if request.form.get("is_active") else 0
         password = request.form.get("password")
@@ -246,9 +249,10 @@ def edit_user(user_id):
     if not user:
         flash("User not found.", "danger")
         return redirect(url_for("auth.users_list"))
+    roles = PROJECT_ROLES if system in ("projects", "crm") else ROLES
     if system == "projects":
-        return render_template("projects/user_form.html", user=user, roles=PROJECT_ROLES, editing=True, system=system)
-    return render_template("auth/users.html", users=[], user=user, roles=ROLES, editing=True, system=system)
+        return render_template("projects/user_form.html", user=user, roles=roles, editing=True, system=system)
+    return render_template("auth/users.html", users=[], user=user, roles=roles, editing=True, system=system)
 
 @auth.route("/users/delete/<int:user_id>")
 @roles_required("admin")

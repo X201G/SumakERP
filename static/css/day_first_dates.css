@@ -1,0 +1,92 @@
+.day-first-date-control {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+
+.day-first-date-display {
+    width: 100% !important;
+    padding-right: 44px !important;
+    background: var(--theme-surface, #fff) !important;
+    color: var(--theme-text, #1a1a1a) !important;
+}
+
+.day-first-date-display:focus {
+    outline: 2px solid var(--theme-accent, #287a72);
+    outline-offset: 1px;
+}
+
+.day-first-date-native {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.day-first-date-trigger {
+    position: absolute;
+    top: 50%;
+    right: 3px;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #176c62;
+    cursor: pointer;
+}
+
+.day-first-date-trigger:hover {
+    background: rgba(23, 108, 98, .1);
+}
+
+.day-first-date-trigger:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+}
+
+.day-first-calendar-icon {
+    position: relative;
+    display: block;
+    width: 16px;
+    height: 15px;
+    border: 2px solid currentColor;
+    border-radius: 3px;
+}
+
+.day-first-calendar-icon::before {
+    position: absolute;
+    top: 3px;
+    right: 0;
+    left: 0;
+    border-top: 2px solid currentColor;
+    content: "";
+}
+
+.day-first-calendar-icon::after {
+    position: absolute;
+    top: 7px;
+    left: 3px;
+    width: 2px;
+    height: 2px;
+    background: currentColor;
+    box-shadow: 4px 0 currentColor, 8px 0 currentColor, 0 3px currentColor, 4px 3px currentColor, 8px 3px currentColor;
+    content: "";
+}
+
+body[data-theme="dark"] .day-first-date-trigger {
+    color: #71e2ce;
+}
+
+body[data-theme="dark"] .day-first-date-trigger:hover {
+    background: rgba(113, 226, 206, .14);
+}

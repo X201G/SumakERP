@@ -2,6 +2,7 @@ from flask import Blueprint
 from flask import render_template, request, redirect, url_for, flash
 from database import get_connection
 from modules.stock import add_stock_movement
+from modules.crm import sync_quotation_opportunity
 
 sales = Blueprint("sales", __name__)
 from modules.auth import require_system
@@ -228,6 +229,7 @@ def add_sales_quotation():
                 VALUES (?,?,?,?,?,?,?,?,?,?,?)
             """, (quotation_id, products[i], unit_ids[i], hsn_ids[i], qty, rate, discount, tax_rate, round(bef_tax_amt, 2), round(tax_amount, 2), round(amount, 2)))
         cursor.execute("UPDATE sales_quotations SET total_amount=? WHERE id=?", (round(total_amount, 2), quotation_id))
+        sync_quotation_opportunity(cursor, quotation_id)
         conn.commit()
         conn.close()
         flash("Sales Quotation created successfully!", "success")

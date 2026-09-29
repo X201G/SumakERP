@@ -11,6 +11,8 @@ from modules.purchases import purchases
 app.register_blueprint(purchases)
 from modules.sales import sales
 app.register_blueprint(sales)
+from modules.crm import crm
+app.register_blueprint(crm)
 from modules.stock import stock
 app.register_blueprint(stock)
 from modules.accounting import accounting

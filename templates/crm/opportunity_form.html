@@ -1,0 +1,58 @@
+{% extends "base_crm.html" %}
+{% block title %}New Opportunity - Customer CRM{% endblock %}
+{% block page_title %}New Opportunity{% endblock %}
+{% block content %}
+<style>
+    .crm-form { max-width: 930px; color: #25352e; }
+    .crm-form-intro { border-bottom: 1px solid #dce3dc; padding-bottom: 17px; margin-bottom: 19px; }
+    .crm-form-intro h2 { font-size: 22px; margin-bottom: 5px; }
+    .crm-form-intro p { color: #69776f; font-size: 13px; }
+    .crm-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 18px; }
+    .crm-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .crm-field.full { grid-column: 1 / -1; }
+    .crm-field label { font-size: 12px; font-weight: 650; }
+    .crm-field input, .crm-field select, .crm-field textarea { width: 100%; padding: 9px 10px; border: 1px solid #cfd9d0; border-radius: 4px; background: white; color: #25352e; font: inherit; }
+    .crm-field textarea { min-height: 90px; resize: vertical; }
+    .crm-actions { display: flex; gap: 12px; align-items: center; margin-top: 22px; }
+    .crm-submit { border: 0; border-radius: 4px; background: #286b4b; color: white; padding: 11px 17px; font-weight: 650; cursor: pointer; }
+    .crm-cancel { color: #52645a; text-decoration: none; }
+    .crm-hint { color: #69776f; font-size: 11px; font-weight: 400; }
+    @media(max-width: 620px) { .crm-form-grid { grid-template-columns: 1fr; } .crm-field.full { grid-column: auto; } }
+</style>
+<form class="crm-form" method="post">
+    <header class="crm-form-intro"><h2>Track a customer opportunity</h2><p>Choose a quotation to fill the customer, value and product automatically.</p></header>
+    <div class="crm-form-grid">
+        <div class="crm-field full">
+            <label for="quotation_id">Existing quotation <span class="crm-hint">Optional · details auto-fill</span></label>
+            <select id="quotation_id" name="quotation_id">
+                <option value="">Create without a quotation</option>
+                {% for quote in quotations %}
+                <option value="{{ quote.id }}" data-customer="{{ quote.customer_id }}" data-title="{{ quote.quotation_no }} - {{ quote.customer_name }}" data-value="{{ quote.total_amount or 0 }}" data-stage="{{ 'won' if quote.status in ('accepted', 'won') else ('lost' if quote.status in ('rejected', 'lost') else 'quoted') }}" data-product="{{ quote.first_product_id or '' }}" {% if (form.get('quotation_id')|int if form.get('quotation_id') else selected_quotation.id if selected_quotation else 0) == quote.id %}selected{% endif %}>{{ quote.quotation_no }} · {{ quote.customer_name }} · ₹{{ "{:,.2f}".format(quote.total_amount or 0) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="crm-field full"><label for="title">Opportunity name</label><input id="title" name="title" required value="{{ form.get('title', selected_quotation.quotation_no ~ ' - ' ~ selected_quotation.customer_name if selected_quotation else '') }}" placeholder="e.g. Plant expansion, Q4 supply"></div>
+        <div class="crm-field"><label for="customer_id">Customer</label><select id="customer_id" name="customer_id" required><option value="">Select customer</option>{% for customer in customers %}<option value="{{ customer.id }}" {% if (form.get('customer_id')|int if form.get('customer_id') else selected_quotation.customer_id if selected_quotation else 0) == customer.id %}selected{% endif %}>{{ customer.name }}{% if customer.phone %} · {{ customer.phone }}{% endif %}</option>{% endfor %}</select></div>
+        <div class="crm-field"><label for="product_id">Product of interest</label><select id="product_id" name="product_id"><option value="">Not selected</option>{% for product in products %}<option value="{{ product.id }}" {% if selected_quotation and selected_quotation.first_product_id == product.id %}selected{% endif %}>{{ product.product_name }}</option>{% endfor %}</select></div>
+        <div class="crm-field"><label for="stage">Stage</label><select id="stage" name="stage">{% for stage in stages %}<option value="{{ stage }}" {% if (form.get('stage', 'quoted' if selected_quotation else 'qualified')) == stage %}selected{% endif %}>{{ stage_labels[stage] }}</option>{% endfor %}</select></div>
+        <div class="crm-field"><label for="potential_value">Potential value (₹)</label><input id="potential_value" name="potential_value" type="number" min="0" step="0.01" value="{{ form.get('potential_value', selected_quotation.total_amount if selected_quotation else '0') }}"></div>
+        <div class="crm-field"><label for="expected_close_date">Expected close</label><input id="expected_close_date" name="expected_close_date" type="date" value="{{ form.get('expected_close_date', '') }}"></div>
+        <div class="crm-field"><label for="next_follow_up">Next follow-up</label><input id="next_follow_up" name="next_follow_up" type="date" value="{{ form.get('next_follow_up', '') }}"></div>
+        <div class="crm-field"><label for="owner_id">Owner</label><select id="owner_id" name="owner_id">{% for user in users %}<option value="{{ user.id }}" {% if (form.get('owner_id')|int if form.get('owner_id') else session_user_id|default(0)) == user.id %}selected{% endif %}>{{ user.full_name or user.username }}</option>{% endfor %}</select></div>
+        <div class="crm-field full"><label for="notes">Potential and context</label><textarea id="notes" name="notes" placeholder="Customer need, estimated volume, competitor, budget…">{{ form.get('notes', '') }}</textarea></div>
+    </div>
+    <div class="crm-actions"><button class="crm-submit" type="submit">Create opportunity</button><a class="crm-cancel" href="{{ url_for('crm.index') }}">Cancel</a></div>
+</form>
+<script>
+    const quoteSelect = document.getElementById('quotation_id');
+    quoteSelect.addEventListener('change', () => {
+        const quote = quoteSelect.selectedOptions[0];
+        if (!quote.value) return;
+        document.getElementById('customer_id').value = quote.dataset.customer;
+        document.getElementById('title').value = quote.dataset.title;
+        document.getElementById('potential_value').value = quote.dataset.value;
+        document.getElementById('stage').value = quote.dataset.stage;
+        document.getElementById('product_id').value = quote.dataset.product;
+    });
+</script>
+{% endblock %}

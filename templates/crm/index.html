@@ -1,0 +1,111 @@
+{% extends "base_crm.html" %}
+{% block title %}Customer CRM - SUMAK ERP{% endblock %}
+{% block page_title %}Customer CRM{% endblock %}
+{% block content %}
+<style>
+    .crm { --crm-ink: #25352e; --crm-muted: #69776f; --crm-line: #dce3dc; --crm-green: #286b4b; --crm-pale: #edf4ee; color: var(--crm-ink); }
+    .crm-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .crm-head h2 { font-size: 24px; margin-bottom: 4px; }
+    .crm-head p, .crm-muted { color: var(--crm-muted); font-size: 13px; }
+    .crm-button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 15px; border: 0; border-radius: 5px; background: var(--crm-green); color: white; font-weight: 650; text-decoration: none; cursor: pointer; }
+    .crm-button:hover { background: #1c5439; color: white; }
+    .crm-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid var(--crm-line); margin-bottom: 24px; }
+    .crm-stat { padding: 15px 18px 15px 0; }
+    .crm-stat + .crm-stat { border-left: 1px solid var(--crm-line); padding-left: 18px; }
+    .crm-stat span { display: block; color: var(--crm-muted); font-size: 11px; text-transform: uppercase; margin-bottom: 5px; }
+    .crm-stat strong { font-size: 21px; }
+    .crm-stages { display: grid; grid-template-columns: repeat(6, minmax(105px, 1fr)); gap: 7px; margin-bottom: 23px; overflow-x: auto; }
+    .crm-stage { color: var(--crm-ink); text-decoration: none; border-top: 3px solid #98aa9d; padding: 10px 9px; background: rgba(255,255,255,.55); min-width: 105px; }
+    .crm-stage:hover, .crm-stage.selected { background: var(--crm-pale); }
+    .crm-stage strong, .crm-stage span { display: block; }
+    .crm-stage strong { font-size: 12px; }
+    .crm-stage span { margin-top: 4px; color: var(--crm-muted); font-size: 11px; }
+    .crm-stage[data-stage="won"] { border-color: #32835b; }
+    .crm-stage[data-stage="lost"] { border-color: #bd655c; }
+    .crm-followups { border-left: 3px solid #d58b35; padding: 1px 0 1px 15px; margin: 0 0 24px; }
+    .crm-followups h3 { font-size: 14px; margin: 0 0 8px; }
+    .crm-followup-list { display: flex; gap: 8px; overflow-x: auto; }
+    .crm-followup { min-width: 190px; padding: 9px 11px; background: #fff8ed; color: var(--crm-ink); text-decoration: none; border: 1px solid #f0dfc4; }
+    .crm-followup strong, .crm-followup span { display: block; }
+    .crm-followup strong { font-size: 12px; }
+    .crm-followup span { color: #835a2d; font-size: 11px; margin-top: 3px; }
+    .crm-filters { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
+    .crm-filters input, .crm-filters select { min-height: 38px; padding: 7px 10px; border: 1px solid var(--crm-line); border-radius: 4px; background: white; color: #25352e; }
+    .crm-filters input { flex: 1; min-width: 130px; }
+    .crm-table-wrap { overflow-x: auto; border-top: 1px solid var(--crm-line); }
+    .crm-table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    .crm-table th { padding: 10px 9px; text-align: left; color: var(--crm-muted); font-size: 10px; text-transform: uppercase; border-bottom: 1px solid var(--crm-line); }
+    .crm-table td { padding: 12px 9px; border-bottom: 1px solid #e9ede9; vertical-align: middle; font-size: 13px; }
+    .crm-table a { color: var(--crm-green); font-weight: 650; text-decoration: none; }
+    .crm-table small { display: block; color: var(--crm-muted); margin-top: 4px; }
+    .crm-chip { display: inline-block; padding: 4px 7px; border-radius: 3px; background: var(--crm-pale); font-size: 11px; white-space: nowrap; }
+    .crm-chip.won { background: #e2f1e7; color: #286b4b; }
+    .crm-chip.lost { background: #f8e9e7; color: #954a44; }
+    .crm-empty { padding: 30px 10px; color: var(--crm-muted); text-align: center; }
+    @media (max-width: 700px) { .crm-head { align-items: flex-start; flex-direction: column; } .crm-stats { grid-template-columns: 1fr 1fr; } .crm-stat:nth-child(3) { border-left: 0; padding-left: 0; } .crm-filters { align-items: stretch; flex-direction: column; } }
+</style>
+<main class="crm">
+    <header class="crm-head">
+        <div><h2>Customer pipeline</h2><p>Visits, trials, quotations and purchase orders in one place.</p></div>
+        <a class="crm-button" href="{{ url_for('crm.create_opportunity') }}">＋ New opportunity</a>
+    </header>
+
+    <section class="crm-stats" aria-label="Pipeline summary">
+        <div class="crm-stat"><span>Open opportunities</span><strong>{{ open_count }}</strong></div>
+        <div class="crm-stat"><span>Weighted pipeline</span><strong>₹{{ "{:,.0f}".format(pipeline_value) }}</strong></div>
+        <div class="crm-stat"><span>Won value</span><strong>₹{{ "{:,.0f}".format(won_value) }}</strong></div>
+    </section>
+
+    <nav class="crm-stages" aria-label="Filter by stage">
+        {% for stage in stages %}
+        {% set summary = totals.get(stage) %}
+        <a class="crm-stage {% if stage_filter == stage %}selected{% endif %}" data-stage="{{ stage }}" href="{{ url_for('crm.index', stage=stage) }}">
+            <strong>{{ stage_labels[stage] }}</strong>
+            <span>{{ summary.deal_count if summary else 0 }} · ₹{{ "{:,.0f}".format(summary.amount if summary else 0) }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+
+    {% if due_follow_ups %}
+    <section class="crm-followups">
+        <h3>Follow-ups due</h3>
+        <div class="crm-followup-list">
+            {% for item in due_follow_ups %}
+            <a class="crm-followup" href="{{ url_for('crm.detail', opportunity_id=item.id) }}">
+                <strong>{{ item.customer_name }} · {{ item.title }}</strong>
+                <span>{{ item.next_follow_up|crm_date }}{% if item.next_follow_up < today %} · overdue{% else %} · due today{% endif %}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <form class="crm-filters" method="get" action="{{ url_for('crm.index') }}">
+        <input type="search" name="search" value="{{ search }}" placeholder="Find customer, product or quote">
+        {% if stage_filter %}<input type="hidden" name="stage" value="{{ stage_filter }}">{% endif %}
+        <button class="crm-button" type="submit">Search</button>
+        {% if search or stage_filter %}<a href="{{ url_for('crm.index') }}" class="crm-muted">Clear</a>{% endif %}
+    </form>
+
+    <div class="crm-table-wrap">
+        <table class="crm-table">
+            <thead><tr><th>Opportunity</th><th>Customer</th><th>Stage</th><th>Potential</th><th>Quotation</th><th>PO status</th><th>Follow-up</th></tr></thead>
+            <tbody>
+                {% for item in opportunities %}
+                <tr>
+                    <td><a href="{{ url_for('crm.detail', opportunity_id=item.id) }}">{{ item.title }}</a><small>{{ item.owner_name or 'Unassigned' }}{% if item.product_name %} · {{ item.product_name }}{% endif %}</small></td>
+                    <td>{{ item.customer_name }}{% if item.customer_phone %}<small>{{ item.customer_phone }}</small>{% endif %}</td>
+                    <td><span class="crm-chip {{ item.stage }}">{{ stage_labels.get(item.stage, item.stage) }}</span></td>
+                    <td>₹{{ "{:,.2f}".format(item.potential_value or 0) }}</td>
+                    <td>{% if item.quotation_no %}{{ item.quotation_no }}{% else %}<span class="crm-muted">—</span>{% endif %}</td>
+                    <td>{{ {"not_received": "Awaiting PO", "received": "Received", "processing": "Processing", "fulfilled": "Fulfilled", "cancelled": "Cancelled"}.get(item.po_status, item.po_status) }}</td>
+                    <td>{% if item.next_follow_up %}{{ item.next_follow_up|crm_date }}{% else %}<span class="crm-muted">Not set</span>{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td class="crm-empty" colspan="7">No opportunities match this view.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</main>
+{% endblock %}

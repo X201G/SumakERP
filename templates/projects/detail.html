@@ -194,6 +194,11 @@
 
     function saveProjectDetails() {
         if (!detailsAreDirty) return saveInFlight;
+        if (!detailsForm.checkValidity()) {
+            detailsForm.reportValidity();
+            saveStatus.textContent = 'Enter valid dates as DD/MM/YYYY before saving.';
+            return Promise.resolve(false);
+        }
         clearTimeout(saveTimer);
         detailsAreDirty = false;
         saveStatus.textContent = 'Saving…';

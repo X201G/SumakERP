@@ -96,6 +96,7 @@
         }
     </style>
     {% block head %}{% endblock %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/day_first_dates.css') }}">
 </head>
 <body>
     <aside class="sidebar" id="sidebar">
@@ -163,5 +164,6 @@
         document.getElementById('sidebarToggle').addEventListener('click', () => setSidebarOpen(sidebar.classList.contains('closed')));
         setTimeout(() => { const messages = document.getElementById('flash-messages'); if (messages) messages.hidden = true; }, 3500);
     </script>
+<script src="{{ url_for('static', filename='js/day_first_dates.js') }}"></script>
 </body>
 </html>

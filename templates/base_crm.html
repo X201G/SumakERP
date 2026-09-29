@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Customer CRM - SUMAK{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/day_first_dates.css') }}">
+    <style>
+        :root { color-scheme: light; --crm-ink: #25352e; --crm-green: #286b4b; --crm-muted: #69776f; --crm-line: #dce3dc; --crm-bg: #f4f6f2; --crm-paper: #fff; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; background: var(--crm-bg); color: var(--crm-ink); font-family: 'Segoe UI', sans-serif; }
+        .crm-shell { min-height: 100vh; display: flex; flex-direction: column; }
+        .crm-topbar { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 26px; background: var(--crm-paper); border-bottom: 1px solid var(--crm-line); }
+        .crm-brand { display: flex; align-items: center; gap: 12px; color: var(--crm-ink); text-decoration: none; }
+        .crm-brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 5px; background: var(--crm-green); color: white; font-size: 13px; font-weight: 750; }
+        .crm-brand-name { font-size: 14px; font-weight: 750; }
+        .crm-brand-sub { display: block; margin-top: 2px; color: var(--crm-muted); font-size: 10px; text-transform: uppercase; }
+        .crm-nav { display: flex; align-items: center; gap: 5px; }
+        .crm-nav a { padding: 9px 11px; border-radius: 4px; color: #52645a; text-decoration: none; font-size: 12px; font-weight: 600; }
+        .crm-nav a:hover, .crm-nav a[aria-current="page"] { background: #edf4ee; color: var(--crm-green); }
+        .crm-account { display: flex; align-items: center; gap: 12px; color: var(--crm-muted); font-size: 12px; }
+        .crm-account a { color: var(--crm-green); text-decoration: none; font-weight: 650; }
+        .crm-main { width: min(1440px, 100%); margin: 0 auto; padding: 25px 28px 44px; flex: 1; }
+        .crm-page-title { margin: 0 0 20px; color: var(--crm-ink); font-size: 18px; font-weight: 700; }
+        .crm-flashes { margin-bottom: 16px; }
+        .crm-flash { padding: 10px 12px; border: 1px solid #d4e5d7; border-radius: 4px; background: #edf6ef; color: #286b4b; font-size: 13px; }
+        .crm-flash + .crm-flash { margin-top: 6px; }
+        .crm-flash.danger { border-color: #efcbc5; background: #fff0ee; color: #9c453c; }
+        body:has(.crm-table) table, body:has(form) table { background: var(--crm-paper); }
+        body:has(.crm-table) input, body:has(form) input, body:has(form) select, body:has(form) textarea { font-family: inherit; }
+        @media (max-width: 720px) {
+            .crm-topbar { align-items: flex-start; flex-wrap: wrap; padding: 12px 16px; }
+            .crm-brand { margin-right: auto; }
+            .crm-nav { order: 3; width: 100%; overflow-x: auto; }
+            .crm-nav a { white-space: nowrap; }
+            .crm-account { margin-left: auto; }
+            .crm-account span { display: none; }
+            .crm-main { padding: 19px 15px 32px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="crm-shell">
+        <header class="crm-topbar">
+            <a class="crm-brand" href="{{ url_for('crm.index') }}">
+                <span class="crm-brand-mark">S</span>
+                <span class="crm-brand-name">SUMAK<span class="crm-brand-sub">Customer CRM</span></span>
+            </a>
+            <nav class="crm-nav" aria-label="CRM navigation">
+                <a href="{{ url_for('crm.index') }}" {% if request.path == '/crm' %}aria-current="page"{% endif %}>Pipeline</a>
+                <a href="{{ url_for('crm.create_opportunity') }}" {% if request.path == '/crm/opportunities/new' %}aria-current="page"{% endif %}>New opportunity</a>
+                {% if session.get('role') == 'admin' %}<a href="{{ url_for('auth.users_list') }}" {% if request.path.startswith('/users') %}aria-current="page"{% endif %}>Team</a>{% endif %}
+            </nav>
+            <div class="crm-account"><span>{{ session.get('full_name') or session.get('username') }}</span><a href="{{ url_for('auth.logout') }}">Log out</a></div>
+        </header>
+        <main class="crm-main">
+            <h1 class="crm-page-title">{% block page_title %}Customer CRM{% endblock %}</h1>
+            <div class="crm-flashes">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for category, message in messages %}
+                    <div class="crm-flash {% if category == 'danger' %}danger{% endif %}">{{ message }}</div>
+                    {% endfor %}
+                {% endwith %}
+            </div>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='js/day_first_dates.js') }}"></script>
+</body>
+</html>

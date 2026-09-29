@@ -45,6 +45,13 @@ def create_tables():
         )
         print("✅ Default admins created -> distribution: admin/admin123, manufacturing: mfgadmin/mfg123 (change these later!)")
 
+    cursor.execute("SELECT COUNT(*) FROM users WHERE system = 'crm'")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute(
+            "INSERT INTO users (username, password_hash, full_name, role, system) VALUES (?,?,?,?,?)",
+            ("crmadmin", generate_password_hash("CrmTemp2026!"), "CRM Administrator", "admin", "crm")
+        )
+
     ## Unit master
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS units (
@@ -428,6 +435,54 @@ def create_tables():
         FOREIGN KEY (hsn_id) REFERENCES hsn(id)
         )
     ''')
+
+    ## Customer relationship management
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS crm_opportunities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        customer_id INTEGER NOT NULL,
+        product_id INTEGER,
+        quotation_id INTEGER UNIQUE,
+        stage TEXT NOT NULL DEFAULT 'qualified',
+        potential_value REAL NOT NULL DEFAULT 0,
+        expected_close_date DATE,
+        next_follow_up DATE,
+        customer_po_no TEXT,
+        po_status TEXT NOT NULL DEFAULT 'not_received',
+        notes TEXT,
+        owner_id INTEGER,
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(id),
+        FOREIGN KEY (product_id) REFERENCES products(id),
+        FOREIGN KEY (quotation_id) REFERENCES sales_quotations(id) ON DELETE SET NULL,
+        FOREIGN KEY (owner_id) REFERENCES users(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_crm_opportunities_stage ON crm_opportunities(stage)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_crm_opportunities_customer ON crm_opportunities(customer_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_crm_opportunities_follow_up ON crm_opportunities(next_follow_up)')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS crm_activities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        opportunity_id INTEGER NOT NULL,
+        activity_type TEXT NOT NULL,
+        activity_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        product_id INTEGER,
+        outcome TEXT,
+        notes TEXT,
+        next_follow_up DATE,
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (opportunity_id) REFERENCES crm_opportunities(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_crm_activities_opportunity ON crm_activities(opportunity_id, activity_date DESC)')
 
     ## Sales Order Header
     cursor.execute('''
