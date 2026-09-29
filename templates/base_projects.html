@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,6 +25,14 @@
             --theme-muted: #bac7d9;
             --projects-soft: #244641;
         }
+        input[type="date"] { color-scheme: light; }
+        body[data-theme="dark"] input[type="date"] { color-scheme: dark; }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 1;
+            cursor: pointer;
+            filter: invert(34%) sepia(22%) saturate(1270%) hue-rotate(124deg) brightness(88%) contrast(88%);
+        }
+        body[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
         * { box-sizing: border-box; }
         body {
             margin: 0;

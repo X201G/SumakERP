@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
     <head>
         <meta name="google" content="notranslate">
         <meta charset="UTF-8">
@@ -36,6 +36,15 @@
                 --theme-white: #24314d;
                 --theme-hover: rgba(88, 144, 203, 0.18);
             }
+
+            input[type="date"] { color-scheme: light; }
+            body[data-theme="dark"] input[type="date"] { color-scheme: dark; }
+            input[type="date"]::-webkit-calendar-picker-indicator {
+                opacity: 1;
+                cursor: pointer;
+                filter: invert(34%) sepia(22%) saturate(1270%) hue-rotate(124deg) brightness(88%) contrast(88%);
+            }
+            body[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
 
             body[data-theme="dark"] .page-title,
             body[data-theme="dark"] .stat-label,
