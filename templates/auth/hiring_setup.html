@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set up Hiring - SUMAK</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px; background: #18252a; color: #202b2d; font-family: 'Segoe UI', sans-serif; }
+        main { width: min(100%, 430px); padding: 30px; border-radius: 7px; background: #fff; }
+        h1 { margin: 0; font-size: 22px; }
+        p { color: #637174; font-size: 13px; line-height: 1.55; }
+        label { display: block; margin: 17px 0 6px; font-size: 13px; font-weight: 650; }
+        input { width: 100%; min-height: 40px; padding: 9px 11px; border: 1px solid #ccd5d4; border-radius: 4px; font: inherit; }
+        button { width: 100%; min-height: 42px; margin-top: 22px; border: 0; border-radius: 4px; background: #287a72; color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+        .flash { margin: 12px 0; padding: 10px; border-radius: 4px; background: #fbe5e4; color: #9c3029; font-size: 13px; }
+        a { display: block; margin-top: 14px; color: #287a72; text-align: center; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Set up Hiring access</h1>
+        <p>Create the first Hiring administrator account. This account is separate from your ERP login.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}<div class="flash">{{ message }}</div>{% endfor %}
+        {% endwith %}
+        <form method="POST">
+            <label for="username">Username</label>
+            <input id="username" name="username" autocomplete="username" required autofocus>
+            <label for="full_name">Full name</label>
+            <input id="full_name" name="full_name" autocomplete="name">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" minlength="8" autocomplete="new-password" required>
+            <button type="submit">Create Hiring administrator</button>
+        </form>
+        <a href="/users">Return to users</a>
+    </main>
+</body>
+</html>

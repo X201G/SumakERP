@@ -1,4 +1,5 @@
 from functools import wraps
+import sqlite3
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_connection
@@ -7,6 +8,8 @@ auth = Blueprint("auth", __name__)
 
 ROLES = ["admin", "sales", "purchase", "store", "accounts"]
 PROJECT_ROLES = ["admin", "user", "external"]
+HIRING_ROLES = ["admin", "recruiter", "hiring_manager", "viewer"]
+DELIVERY_ROLES = ["admin", "dispatcher", "driver"]
 
 # ============================================
 # ACCESS CONTROL HELPERS
@@ -88,7 +91,10 @@ def login():
         system = request.form["system"]
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        cursor.execute(
+            "SELECT * FROM users WHERE username = ? AND system = ?",
+            (username, system),
+        )
         user = cursor.fetchone()
         conn.close()
         if not user or not check_password_hash(user["password_hash"], password):
@@ -114,6 +120,10 @@ def login():
             return redirect(url_for("manufacturing.index"))
         if system == "projects":
             return redirect(url_for("projects.index"))
+        if system == "hiring":
+            return redirect(url_for("hiring.index"))
+        if system == "delivery":
+            return redirect(url_for("delivery.index"))
         return redirect(url_for("index"))
 
     system = request.args.get("system")
@@ -141,11 +151,22 @@ def users_list():
     users = cursor.fetchall()
     cursor.execute("SELECT COUNT(*) FROM users WHERE system = 'projects'")
     projects_setup_available = cursor.fetchone()[0] == 0
+    cursor.execute("SELECT COUNT(*) FROM users WHERE system = 'hiring'")
+    hiring_setup_available = cursor.fetchone()[0] == 0
+    cursor.execute("SELECT COUNT(*) FROM users WHERE system = 'delivery'")
+    delivery_setup_available = cursor.fetchone()[0] == 0
     conn.close()
     template = "projects/users.html" if system == "projects" else "auth/users.html"
-    roles = PROJECT_ROLES if system == "projects" else ROLES
+    roles = (
+        PROJECT_ROLES if system == "projects"
+        else HIRING_ROLES if system == "hiring"
+        else DELIVERY_ROLES if system == "delivery"
+        else ROLES
+    )
     return render_template(template, users=users, roles=roles, system=system,
-                           projects_setup_available=projects_setup_available)
+                           projects_setup_available=projects_setup_available,
+                           hiring_setup_available=hiring_setup_available,
+                           delivery_setup_available=delivery_setup_available)
 
 @auth.route("/users/setup-projects", methods=["GET", "POST"])
 @roles_required("admin")
@@ -184,6 +205,85 @@ def setup_projects():
     conn.close()
     return render_template("auth/project_setup.html")
 
+@auth.route("/users/setup-hiring", methods=["GET", "POST"])
+@roles_required("admin")
+def setup_hiring():
+    if session.get("system") not in ("distribution", "hiring"):
+        flash("Set up Hiring from an administrator account.", "danger")
+        return redirect(url_for("auth.users_list"))
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users WHERE system = 'hiring'")
+    if cursor.fetchone()[0] > 0:
+        conn.close()
+        flash("The Hiring portal already has a user. Add further users from that portal.", "info")
+        return redirect(url_for("auth.users_list"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        full_name = request.form.get("full_name", "").strip()
+        password = request.form.get("password", "")
+        if not username or len(password) < 8:
+            conn.close()
+            flash("Enter a username and a password with at least 8 characters.", "danger")
+            return render_template("auth/hiring_setup.html")
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, full_name, role, system) VALUES (?,?,?,?,?)",
+                (username, generate_password_hash(password), full_name, "admin", "hiring")
+            )
+            conn.commit()
+        except Exception:
+            conn.close()
+            flash("That username is already taken.", "danger")
+            return render_template("auth/hiring_setup.html")
+        conn.close()
+        flash("Hiring administrator created. Sign in to Hiring with those credentials.", "success")
+        return redirect(url_for("auth.users_list"))
+
+    conn.close()
+    return render_template("auth/hiring_setup.html")
+
+
+@auth.route("/users/setup-delivery", methods=["GET", "POST"])
+@roles_required("admin")
+def setup_delivery():
+    if session.get("system") not in ("distribution", "delivery"):
+        flash("Set up Delivery from an administrator account.", "danger")
+        return redirect(url_for("auth.users_list"))
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users WHERE system = 'delivery'")
+    if cursor.fetchone()[0] > 0:
+        conn.close()
+        flash("The Delivery portal already has a user. Add further users from that portal.", "info")
+        return redirect(url_for("auth.users_list"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        full_name = request.form.get("full_name", "").strip()
+        password = request.form.get("password", "")
+        if not username or len(password) < 8:
+            conn.close()
+            flash("Enter a username and a password with at least 8 characters.", "danger")
+            return render_template("auth/delivery_setup.html")
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, password_hash, full_name, role, system) VALUES (?,?,?,?,?)",
+                (username, generate_password_hash(password), full_name, "admin", "delivery")
+            )
+            conn.commit()
+        except Exception:
+            conn.close()
+            flash("That username is already taken.", "danger")
+            return render_template("auth/delivery_setup.html")
+        conn.close()
+        flash("Delivery administrator created. Sign in to Delivery with those credentials.", "success")
+        return redirect(url_for("auth.users_list"))
+
+    conn.close()
+    return render_template("auth/delivery_setup.html")
+
 @auth.route("/users/add", methods=["GET", "POST"])
 @roles_required("admin")
 def add_user():
@@ -195,6 +295,10 @@ def add_user():
         system = session.get("system", "distribution")
         if system == "projects":
             role = role if role in PROJECT_ROLES else "user"
+        elif system == "hiring":
+            role = role if role in HIRING_ROLES else "recruiter"
+        elif system == "delivery":
+            role = role if role in DELIVERY_ROLES else "driver"
         conn = get_connection()
         cursor = conn.cursor()
         try:
@@ -211,7 +315,8 @@ def add_user():
     system = session.get("system", "distribution")
     if system == "projects":
         return render_template("projects/user_form.html", system=system, roles=PROJECT_ROLES, editing=False)
-    return render_template("auth/users.html", users=[], roles=ROLES, system=system)
+    roles = DELIVERY_ROLES if system == "delivery" else HIRING_ROLES if system == "hiring" else ROLES
+    return render_template("auth/users.html", users=[], roles=roles, system=system)
 
 @auth.route("/users/edit/<int:user_id>", methods=["GET", "POST"])
 @roles_required("admin")
@@ -224,18 +329,45 @@ def edit_user(user_id):
         role = request.form.get("role") or "staff"
         if system == "projects":
             role = role if role in PROJECT_ROLES else "user"
+        elif system == "hiring":
+            role = role if role in HIRING_ROLES else "recruiter"
+        elif system == "delivery":
+            role = role if role in DELIVERY_ROLES else "driver"
+        username = request.form.get("username", "").strip()
+        if system == "delivery" and not username:
+            conn.close()
+            flash("Username is required.", "danger")
+            return redirect(url_for("auth.users_list"))
         is_active = 1 if request.form.get("is_active") else 0
         password = request.form.get("password")
-        if password:
-            cursor.execute(
-                "UPDATE users SET full_name=?, role=?, is_active=?, password_hash=? WHERE id=? AND system=?",
-                (full_name, role, is_active, generate_password_hash(password), user_id, system)
-            )
-        else:
-            cursor.execute(
-                "UPDATE users SET full_name=?, role=?, is_active=? WHERE id=? AND system=?",
-                (full_name, role, is_active, user_id, system)
-            )
+        try:
+            if system == "delivery" and password:
+                cursor.execute(
+                    """UPDATE users SET username=?, full_name=?, role=?, is_active=?, password_hash=?
+                       WHERE id=? AND system=?""",
+                    (username, full_name, role, is_active, generate_password_hash(password), user_id, system)
+                )
+            elif system == "delivery":
+                cursor.execute(
+                    """UPDATE users SET username=?, full_name=?, role=?, is_active=?
+                       WHERE id=? AND system=?""",
+                    (username, full_name, role, is_active, user_id, system)
+                )
+            elif password:
+                cursor.execute(
+                    "UPDATE users SET full_name=?, role=?, is_active=?, password_hash=? WHERE id=? AND system=?",
+                    (full_name, role, is_active, generate_password_hash(password), user_id, system)
+                )
+            else:
+                cursor.execute(
+                    "UPDATE users SET full_name=?, role=?, is_active=? WHERE id=? AND system=?",
+                    (full_name, role, is_active, user_id, system)
+                )
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            conn.close()
+            flash("That username is already taken in this system.", "danger")
+            return redirect(url_for("auth.users_list"))
         conn.commit()
         conn.close()
         flash("User updated successfully!", "success")
@@ -248,7 +380,8 @@ def edit_user(user_id):
         return redirect(url_for("auth.users_list"))
     if system == "projects":
         return render_template("projects/user_form.html", user=user, roles=PROJECT_ROLES, editing=True, system=system)
-    return render_template("auth/users.html", users=[], user=user, roles=ROLES, editing=True, system=system)
+    roles = DELIVERY_ROLES if system == "delivery" else HIRING_ROLES if system == "hiring" else ROLES
+    return render_template("auth/users.html", users=[], user=user, roles=roles, editing=True, system=system)
 
 @auth.route("/users/delete/<int:user_id>")
 @roles_required("admin")

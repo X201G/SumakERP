@@ -1,0 +1,146 @@
+{% extends "base_delivery.html" %}
+
+{% block title %}{% if is_dispatcher %}Route plans{% else %}My routes{% endif %} - SUMAK Delivery{% endblock %}
+{% block head %}
+<style>
+    .heading { display:flex; justify-content:space-between; align-items:flex-end; gap:14px; margin-bottom:22px; }
+    h1 { margin:0; font-size:clamp(22px,4vw,30px); line-height:1.2; }
+    .sub { margin:7px 0 0; color:var(--muted); }
+    .button { display:inline-flex; align-items:center; justify-content:center; min-height:42px; padding:9px 15px; border:0; border-radius:6px; background:var(--accent); color:#fff; font-weight:700; }
+    .section-title { margin:26px 0 12px; font-size:17px; }
+    .notices,.route-list { display:grid; gap:12px; }
+    .notice,.route-card,.empty { padding:16px; border:1px solid var(--line); border-radius:9px; background:var(--card); }
+    .notice { border-left:4px solid #efaa37; }
+    .notice p { margin:0 0 5px; font-weight:650; }
+    .notice small,.route-meta { color:var(--muted); font-size:12px; }
+    .push-settings { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:18px 0; padding:15px 16px; border:1px solid var(--line); border-radius:9px; background:var(--card); }
+    .push-settings p { margin:3px 0 0; color:var(--muted); font-size:12px; }
+    .push-status { min-height:18px; margin-top:5px !important; }
+    .push-button { min-height:40px; flex:none; padding:8px 13px; border:0; border-radius:5px; background:var(--accent); color:#fff; font-weight:700; cursor:pointer; }
+    .push-button:disabled { opacity:.55; cursor:not-allowed; }
+    .route-card { display:flex; align-items:center; justify-content:space-between; gap:18px; color:var(--ink); }
+    .route-card:hover { border-color:var(--accent); }
+    .route-card h2 { margin:0; font-size:16px; }
+    .route-meta { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:5px; }
+    .status { display:inline-flex; padding:4px 8px; border-radius:20px; background:#e5f3f6; color:#176b87; font-size:11px; font-weight:700; text-transform:capitalize; }
+    .status.completed { background:#e2f3e8; color:#237348; }
+    .empty { color:var(--muted); text-align:center; padding:30px 18px; }
+    @media(max-width:550px) { .heading { align-items:stretch; flex-direction:column; } .heading .button { width:100%; } .route-card { align-items:flex-start; flex-direction:column; gap:8px; } .push-settings { align-items:stretch; flex-direction:column; } .push-button { width:100%; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="heading">
+    <div>
+        <h1>{% if is_dispatcher %}Route plans{% else %}Your delivery routes{% endif %}</h1>
+        <p class="sub">{% if is_dispatcher %}Create a vehicle plan and assign its customer stops to a driver.{% else %}Your assigned stops, customer contacts, and directions in one place.{% endif %}</p>
+    </div>
+    {% if is_dispatcher %}<a class="button" href="{{ url_for('delivery.create_route') }}">＋ Add route plan</a>{% endif %}
+</div>
+
+{% if not is_dispatcher %}
+<section class="push-settings">
+    <div>
+        <strong>Phone and browser notifications</strong>
+        {% if push_enabled %}
+        <p id="pushStatus" class="push-status" role="status" aria-live="polite">Enable push to get an alert when a route is assigned.</p>
+        {% else %}
+        <p class="push-status">Push is not configured on the server. Route alerts remain available here.</p>
+        {% endif %}
+    </div>
+    <button class="push-button" id="pushButton" type="button" {% if not push_enabled %}disabled{% endif %}>Enable push notifications</button>
+</section>
+{% if push_enabled %}
+<script>
+    const pushButton = document.getElementById('pushButton');
+    const pushStatus = document.getElementById('pushStatus');
+    const subscriptionUrl = {{ url_for('delivery.push_subscriptions')|tojson }};
+
+    function decodeVapidKey(encodedKey) {
+        const padded = encodedKey + '='.repeat((4 - encodedKey.length % 4) % 4);
+        const decoded = atob(padded.replace(/-/g, '+').replace(/_/g, '/'));
+        return Uint8Array.from(decoded, character => character.charCodeAt(0));
+    }
+
+    pushButton.addEventListener('click', async () => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+            pushStatus.textContent = 'This browser does not support push notifications. Keep the delivery portal bookmarked.';
+            return;
+        }
+        pushButton.disabled = true;
+        pushStatus.textContent = 'Requesting notification permission…';
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                pushStatus.textContent = 'Notification permission was not granted. You can enable it in your browser settings.';
+                return;
+            }
+
+            const keyResponse = await fetch({{ url_for('delivery.push_public_key')|tojson }}, {
+                credentials: 'same-origin'
+            });
+            const keyData = await keyResponse.json();
+            if (!keyResponse.ok) throw new Error(keyData.error || 'Could not load push configuration.');
+
+            const registration = await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
+            const readyRegistration = await navigator.serviceWorker.ready;
+            const subscription = await readyRegistration.pushManager.getSubscription()
+                || await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: decodeVapidKey(keyData.publicKey)
+                });
+            const response = await fetch(subscriptionUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(subscription)
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Could not save this device.');
+            pushStatus.textContent = 'Push notifications are enabled for this device.';
+        } catch (error) {
+            pushStatus.textContent = error.message || 'Could not enable push notifications.';
+        } finally {
+            pushButton.disabled = false;
+        }
+    });
+</script>
+{% endif %}
+<section id="notifications">
+    <h2 class="section-title">New route notifications{% if delivery_unread_count %} · {{ delivery_unread_count }} unread{% endif %}</h2>
+    {% if notifications %}
+    <div class="notices">
+        {% for notification in notifications %}
+        <a class="notice" href="{{ url_for('delivery.route_detail', route_id=notification.route_id) }}">
+            <p>{{ notification.message }}</p>
+            <small>Route date: {{ notification.route_date }} · {{ notification.created_at }}</small>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">No new notifications. Newly assigned routes will appear here.</div>
+    {% endif %}
+</section>
+{% endif %}
+
+<h2 class="section-title">{% if is_dispatcher %}All route plans{% else %}Assigned routes{% endif %}</h2>
+{% if routes %}
+<div class="route-list">
+    {% for route in routes %}
+    <a class="route-card" href="{{ url_for('delivery.route_detail', route_id=route.id) }}">
+        <div>
+            <h2>{{ route.title }}</h2>
+            <div class="route-meta">
+                <span>{{ route.route_date }}</span>
+                {% if route.vehicle %}<span>Vehicle: {{ route.vehicle }}</span>{% endif %}
+                {% if is_dispatcher %}<span>Driver: {{ route.driver_name or route.driver_username }}</span>{% endif %}
+                <span>{{ route.stop_count }} customer{% if route.stop_count != 1 %}s{% endif %}</span>
+            </div>
+        </div>
+        <span class="status {{ route.status }}">{{ route.status }}</span>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty">{% if is_dispatcher %}No route plans yet. Add one to assign a driver and customer stops.{% else %}No routes have been assigned to you yet.{% endif %}</div>
+{% endif %}
+{% endblock %}

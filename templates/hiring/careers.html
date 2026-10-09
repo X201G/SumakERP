@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Careers at SUMAK</title>
+    <style>
+        :root { --ink:#263437; --muted:#667477; --line:#d9e1dc; --surface:#f1f4f1; --paper:#fff; --accent:#287a72; }
+        * { box-sizing:border-box; }
+        body { margin:0; min-height:100vh; background:var(--surface); color:var(--ink); font-family:'Segoe UI',sans-serif; }
+        header { padding:22px max(22px,calc((100% - 1080px)/2)); background:#203238; color:#fff; }
+        .brand { font-size:17px; font-weight:750; letter-spacing:1px; }
+        .brand span { margin-left:10px; color:#a9d8cf; font-size:11px; font-weight:600; letter-spacing:1px; }
+        main { max-width:1080px; margin:0 auto; padding:52px 22px 70px; }
+        h1 { max-width:700px; margin:0; font-size:clamp(30px,5vw,48px); line-height:1.08; }
+        .lede { max-width:640px; margin:13px 0 36px; color:var(--muted); font-size:15px; line-height:1.6; }
+        .openings { border-top:1px solid var(--line); }
+        .job { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:22px; padding:22px 2px; border-bottom:1px solid var(--line); }
+        .job h2 { margin:0; font-size:18px; }
+        .meta { margin-top:7px; color:var(--muted); font-size:12px; }
+        .description { max-width:720px; margin:12px 0 0; color:#4e5d5f; font-size:13px; line-height:1.6; white-space:pre-line; }
+        .apply { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:9px 15px; border-radius:4px; background:var(--accent); color:#fff; font-size:13px; font-weight:650; text-decoration:none; white-space:nowrap; }
+        .empty { padding:36px 3px; color:var(--muted); font-size:14px; }
+        footer { padding:18px 22px; border-top:1px solid var(--line); color:var(--muted); font-size:11px; text-align:center; }
+        @media(max-width:580px) { main { padding-top:38px; } .job { grid-template-columns:1fr; gap:14px; } .apply { justify-self:start; } }
+    </style>
+</head>
+<body>
+    <header><div class="brand">SUMAK <span>CAREERS</span></div></header>
+    <main>
+        <h1>Find your next role at SUMAK.</h1>
+        <p class="lede">Explore current openings and apply directly to our team.</p>
+        <section class="openings" aria-label="Open positions">
+            {% for job in jobs %}
+            <article class="job">
+                <div><h2>{{ job.title }}</h2><div class="meta">{{ job.location or 'Location not set' }} · {{ job.employment_type }}</div>{% if job.description %}<p class="description">{{ job.description }}</p>{% endif %}</div>
+                <a class="apply" href="{{ url_for('hiring.apply', job_id=job.id) }}">Apply now</a>
+            </article>
+            {% else %}<div class="empty">There are no open roles at the moment. Please check again soon.</div>{% endfor %}
+        </section>
+    </main>
+    <footer>SUMAK · Careers</footer>
+</body>
+</html>

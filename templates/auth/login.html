@@ -86,7 +86,7 @@
 <body>
     <div class="login-box">
         <div class="logo-name">SUMAK</div>
-        <div class="logo-sub">{{ 'MANUFACTURING LOGIN' if system == 'manufacturing' else 'PROJECTS LOGIN' if system == 'projects' else 'DISTRIBUTION LOGIN' }}</div>
+        <div class="logo-sub">{{ 'MANUFACTURING LOGIN' if system == 'manufacturing' else 'PROJECTS LOGIN' if system == 'projects' else 'HIRING LOGIN' if system == 'hiring' else 'DELIVERY LOGIN' if system == 'delivery' else 'DISTRIBUTION LOGIN' }}</div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

@@ -1,0 +1,99 @@
+{% extends "base_delivery.html" %}
+
+{% block title %}Add route plan - SUMAK Delivery{% endblock %}
+{% block head %}
+<style>
+    h1 { margin:0 0 7px; font-size:26px; }
+    .intro { margin:0 0 20px; color:var(--muted); }
+    .panel { padding:20px; border:1px solid var(--line); border-radius:9px; background:var(--card); }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .field { display:grid; gap:6px; }
+    .field.wide { grid-column:1/-1; }
+    label { font-size:13px; font-weight:650; }
+    input,select { width:100%; min-height:43px; padding:9px 11px; border:1px solid #cbdadd; border-radius:5px; background:#fff; color:var(--ink); }
+    .stops-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:24px 0 12px; }
+    .stops-heading h2 { margin:0; font-size:18px; }
+    .stop { margin-bottom:12px; padding:15px; border:1px solid var(--line); border-radius:7px; background:#f8fbfc; }
+    .stop-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .stop-head strong { font-size:13px; }
+    .remove { padding:5px 9px; border:1px solid #e5c4c2; border-radius:4px; background:#fff; color:#9c3029; cursor:pointer; }
+    .secondary,.primary { min-height:42px; padding:9px 13px; border:1px solid var(--line); border-radius:5px; background:#fff; color:var(--ink); cursor:pointer; font-weight:650; }
+    .primary { border-color:var(--accent); background:var(--accent); color:white; }
+    .actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+    .help { margin:5px 0 0; color:var(--muted); font-size:12px; }
+    @media(max-width:620px) { .fields { grid-template-columns:1fr; } .field.wide { grid-column:auto; } .panel { padding:15px; } .actions > * { flex:1; text-align:center; } }
+</style>
+{% endblock %}
+{% block content %}
+<h1>Add a route plan</h1>
+<p class="intro">Set the vehicle, assign a driver, and enter the customer stops in delivery order.</p>
+<form id="routeForm" class="panel" method="POST">
+    <div class="fields">
+        <div class="field"><label for="title">Route plan name</label><input id="title" name="title" maxlength="120" required value="{{ title }}" placeholder="e.g. North zone deliveries"></div>
+        <div class="field"><label for="vehicle">Vehicle</label><input id="vehicle" name="vehicle" maxlength="80" value="{{ vehicle }}" placeholder="Vehicle name or registration"></div>
+        <div class="field"><label for="route_date">Delivery date</label><input id="route_date" name="route_date" type="date" value="{{ route_date }}" required></div>
+        <div class="field"><label for="driver_id">Assign driver</label>
+            <select id="driver_id" name="driver_id" required>
+                <option value="">Choose a driver</option>
+                {% for driver in drivers %}<option value="{{ driver.id }}" {% if selected_driver_id == driver.id %}selected{% endif %}>{{ driver.full_name or driver.username }}</option>{% endfor %}
+            </select>
+            {% if not drivers %}<p class="help">Add an active driver account from Users before creating a route.</p>{% endif %}
+        </div>
+    </div>
+    <div class="stops-heading"><h2>Customer stops</h2><button class="secondary" id="addStop" type="button">＋ Add stop</button></div>
+    <div id="stops"></div>
+    <input type="hidden" name="stop_count" id="stopCount" value="1">
+    <div class="actions">
+        <a class="secondary" href="{{ url_for('delivery.index') }}">Cancel</a>
+        <button class="primary" type="submit" {% if not drivers %}disabled{% endif %}>Assign route plan</button>
+    </div>
+</form>
+<template id="stopTemplate">
+    <section class="stop">
+        <div class="stop-head"><strong></strong><button class="remove" type="button">Remove</button></div>
+        <div class="fields">
+            <div class="field"><label>Customer name</label><input data-field="customer_name" maxlength="160" required></div>
+            <div class="field"><label>Contact number (optional)</label><input data-field="customer_phone" type="tel" maxlength="40" autocomplete="tel"></div>
+            <div class="field"><label>Delivery address</label><input data-field="address" maxlength="500" placeholder="Street, area, city"></div>
+            <div class="field"><label>Google Maps link (optional)</label><input data-field="maps_url" type="url" maxlength="1000" placeholder="https://maps.google.com/..."></div>
+        </div>
+        <p class="help">Provide an address or a valid Google Maps link. The driver can open directions from the route.</p>
+    </section>
+</template>
+<script>
+    const stops = document.getElementById('stops');
+    const template = document.getElementById('stopTemplate');
+    const stopCount = document.getElementById('stopCount');
+    const initialStops = {{ form_stops|tojson }};
+
+    function refreshStops() {
+        const sections = [...stops.querySelectorAll('.stop')];
+        stopCount.value = sections.length;
+        sections.forEach((section, index) => {
+            section.querySelector('strong').textContent = `Stop ${index + 1}`;
+            section.querySelectorAll('[data-field]').forEach(input => {
+                input.name = `stops-${index}-${input.dataset.field}`;
+                input.id = `stops-${index}-${input.dataset.field}`;
+                input.closest('.field').querySelector('label').htmlFor = input.id;
+            });
+            section.querySelector('.remove').disabled = sections.length === 1;
+        });
+    }
+
+    function addStop(values = {}) {
+        const section = template.content.firstElementChild.cloneNode(true);
+        section.querySelectorAll('[data-field]').forEach(input => {
+            input.value = values[input.dataset.field] || '';
+        });
+        section.querySelector('.remove').addEventListener('click', () => {
+            section.remove();
+            refreshStops();
+        });
+        stops.append(section);
+        refreshStops();
+    }
+
+    document.getElementById('addStop').addEventListener('click', addStop);
+    initialStops.forEach(addStop);
+</script>
+{% endblock %}

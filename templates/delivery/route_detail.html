@@ -1,0 +1,55 @@
+{% extends "base_delivery.html" %}
+
+{% block title %}{{ route.title }} - SUMAK Delivery{% endblock %}
+{% block head %}
+<style>
+    .back { display:inline-block; margin-bottom:14px; font-size:13px; font-weight:650; }
+    .hero { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:20px; }
+    h1 { margin:0; font-size:clamp(23px,4vw,31px); line-height:1.2; }
+    .meta { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:8px; color:var(--muted); font-size:13px; }
+    .status { display:inline-flex; padding:5px 10px; border-radius:20px; background:#e5f3f6; color:#176b87; font-size:12px; font-weight:700; text-transform:capitalize; }
+    .status.completed { background:#e2f3e8; color:#237348; }
+    .stop-list { display:grid; gap:12px; counter-reset:stops; }
+    .stop { position:relative; padding:17px 18px 17px 58px; border:1px solid var(--line); border-radius:9px; background:var(--card); counter-increment:stops; }
+    .stop::before { content:counter(stops); position:absolute; top:16px; left:16px; display:grid; place-items:center; width:28px; height:28px; border-radius:50%; background:#e5f3f6; color:var(--accent); font-weight:750; }
+    .stop h2 { margin:0; font-size:16px; }
+    .contact { margin-top:5px; color:var(--muted); font-size:13px; }
+    .directions { display:inline-flex; margin-top:10px; padding:8px 11px; border-radius:5px; background:#e5f3f6; font-size:12px; font-weight:700; }
+    .actions { display:flex; justify-content:flex-end; margin-top:20px; }
+    .complete { min-height:44px; padding:10px 15px; border:0; border-radius:6px; background:#237348; color:#fff; font-weight:700; cursor:pointer; }
+    @media(max-width:550px) { .hero { flex-direction:column; } .actions .complete { width:100%; } }
+</style>
+{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('delivery.index') }}">← Back to {% if session.role == 'driver' %}my routes{% else %}route plans{% endif %}</a>
+<div class="hero">
+    <div>
+        <h1>{{ route.title }}</h1>
+        <div class="meta">
+            <span>{{ route.route_date }}</span>
+            {% if route.vehicle %}<span>Vehicle: {{ route.vehicle }}</span>{% endif %}
+            <span>Driver: {{ route.driver_name or route.driver_username }}</span>
+        </div>
+    </div>
+    <span class="status {{ route.status }}">{{ route.status }}</span>
+</div>
+<div class="stop-list">
+    {% for stop in stops %}
+    <article class="stop">
+        <h2>{{ stop.customer_name }}</h2>
+        {% if stop.customer_phone %}<p class="contact">Phone: <a href="tel:{{ stop.customer_phone|replace(' ', '') }}">{{ stop.customer_phone }}</a></p>{% endif %}
+        {% if stop.address %}<p class="contact">{{ stop.address }}</p>{% endif %}
+        {% if stop.maps_url %}
+        <a class="directions" href="{{ stop.maps_url }}" target="_blank" rel="noopener noreferrer">Open map and directions ↗</a>
+        {% elif stop.address %}
+        <a class="directions" href="https://www.google.com/maps/search/?api=1&amp;query={{ stop.address|urlencode }}" target="_blank" rel="noopener noreferrer">Open address in Google Maps ↗</a>
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
+{% if session.role == 'driver' and route.status == 'assigned' %}
+<form class="actions" method="POST" action="{{ url_for('delivery.complete_route', route_id=route.id) }}" onsubmit="return confirm('Mark this route as completed?')">
+    <button class="complete" type="submit">Mark route complete</button>
+</form>
+{% endif %}
+{% endblock %}

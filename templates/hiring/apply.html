@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply: {{ job.title }} - SUMAK</title>
+    <style>
+        :root { --ink:#263437; --muted:#667477; --line:#d9e1dc; --surface:#f1f4f1; --paper:#fff; --accent:#287a72; }
+        * { box-sizing:border-box; }
+        body { margin:0; min-height:100vh; background:var(--surface); color:var(--ink); font-family:'Segoe UI',sans-serif; }
+        header { padding:19px max(20px,calc((100% - 970px)/2)); background:#203238; color:#fff; }
+        .brand { font-size:16px; font-weight:750; letter-spacing:.6px; }
+        .brand span { margin-left:9px; color:#a9d8cf; font-size:10px; letter-spacing:1px; }
+        main { max-width:970px; margin:0 auto; padding:32px 20px 60px; }
+        .back { color:var(--accent); font-size:12px; text-decoration:none; }
+        .layout { display:grid; grid-template-columns:minmax(220px,.75fr) minmax(0,1.25fr); gap:35px; margin-top:20px; align-items:start; }
+        .role h1 { margin:0; font-size:27px; line-height:1.2; }
+        .meta { margin-top:9px; color:var(--muted); font-size:13px; }
+        .description { margin-top:20px; color:#4e5d5f; font-size:13px; line-height:1.65; white-space:pre-line; }
+        form { padding:22px; border:1px solid var(--line); border-radius:5px; background:var(--paper); }
+        .form-title { margin:0 0 16px; font-size:17px; }
+        .fields { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+        .field.wide { grid-column:1/-1; }
+        label { font-size:12px; font-weight:650; }
+        input,textarea { width:100%; min-height:39px; padding:9px 10px; border:1px solid var(--line); border-radius:4px; background:#fbfcfb; color:var(--ink); font:inherit; font-size:13px; }
+        textarea { min-height:100px; resize:vertical; }
+        .consent { display:flex; align-items:flex-start; gap:9px; margin-top:16px; color:var(--muted); font-size:11px; line-height:1.5; }
+        .consent input { width:15px; min-height:15px; height:15px; margin:1px 0 0; accent-color:var(--accent); }
+        .submit { width:100%; min-height:42px; margin-top:16px; border:0; border-radius:4px; background:var(--accent); color:#fff; font:inherit; font-size:13px; font-weight:650; cursor:pointer; }
+        .flash { margin-bottom:13px; padding:10px; border-radius:4px; background:#fbe5e4; color:#9c3029; font-size:12px; }
+        .website-field { position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden; }
+        @media(max-width:700px) { .layout { grid-template-columns:1fr; gap:22px; } }
+        @media(max-width:480px) { .fields { grid-template-columns:1fr; } .field.wide { grid-column:auto; } form { padding:16px; } }
+    </style>
+</head>
+<body>
+    <header><div class="brand">SUMAK <span>CAREERS</span></div></header>
+    <main>
+        <a class="back" href="{{ url_for('hiring.careers') }}">← All openings</a>
+        <div class="layout">
+            <section class="role"><h1>{{ job.title }}</h1><div class="meta">{{ job.location or 'Location not set' }} · {{ job.employment_type }}</div>{% if job.description %}<div class="description">{{ job.description }}</div>{% endif %}</section>
+            <form method="POST">
+                <h2 class="form-title">Your application</h2>
+                {% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<div class="flash">{{ message }}</div>{% endfor %}{% endwith %}
+                <div class="fields">
+                    <div class="field"><label for="full_name">Full name *</label><input id="full_name" name="full_name" maxlength="160" autocomplete="name" required autofocus></div>
+                    <div class="field"><label for="email">Email *</label><input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></div>
+                    <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" maxlength="40" autocomplete="tel"></div>
+                    <div class="field"><label for="resume_url">Resume link</label><input id="resume_url" name="resume_url" type="url" maxlength="500" placeholder="https://"></div>
+                    <div class="field wide"><label for="cover_note">Note to the hiring team</label><textarea id="cover_note" name="cover_note" maxlength="10000"></textarea></div>
+                </div>
+                <div class="website-field" aria-hidden="true"><label for="website">Website</label><input id="website" name="website" tabindex="-1" autocomplete="off"></div>
+                <label class="consent"><input type="checkbox" name="privacy_consent" value="yes" required><span>I agree that SUMAK may use the details I submit to review my application and contact me about this role.</span></label>
+                <button class="submit" type="submit">Submit application</button>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

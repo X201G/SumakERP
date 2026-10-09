@@ -1,0 +1,17 @@
+{
+  "name": "SUMAK Delivery",
+  "short_name": "Delivery",
+  "description": "Driver routes and delivery notifications",
+  "start_url": "/delivery",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f2f7f8",
+  "theme_color": "#123d4c",
+  "icons": [
+    {
+      "src": "/static/logo.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

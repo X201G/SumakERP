@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#123d4c">
+    <link rel="manifest" href="{{ url_for('static', filename='delivery.webmanifest') }}">
+    <title>{% block title %}SUMAK Delivery{% endblock %}</title>
+    <style>
+        :root { color-scheme: light; --ink:#142c36; --muted:#61747d; --surface:#f2f7f8; --card:#fff; --line:#dce8eb; --accent:#176b87; }
+        * { box-sizing:border-box; }
+        body { margin:0; min-height:100vh; background:var(--surface); color:var(--ink); font:15px/1.5 'Segoe UI',sans-serif; }
+        a { color:var(--accent); text-decoration:none; }
+        .topbar { display:flex; align-items:center; gap:20px; min-height:66px; padding:12px max(18px,calc((100% - 1120px)/2)); background:#123d4c; color:#fff; }
+        .brand { color:#fff; font-size:17px; font-weight:750; letter-spacing:.5px; }
+        .nav { display:flex; align-items:center; gap:18px; margin-left:auto; }
+        .nav a { color:#e6f4f7; font-size:13px; }
+        .nav .badge { display:inline-flex; min-width:19px; height:19px; justify-content:center; align-items:center; margin-left:4px; border-radius:50%; background:#ffcb77; color:#16333d; font-size:11px; font-weight:700; }
+        .user { color:#c8dce1; font-size:12px; }
+        .logout { padding:7px 11px; border:1px solid #6094a3; border-radius:5px; }
+        main { width:min(1120px,100%); margin:0 auto; padding:28px 20px 60px; }
+        #flash-messages p { margin:0 0 14px; padding:10px 13px; border-radius:6px; }
+        .flash-success { background:#e0f3e8; color:#17613a; }
+        .flash-info { background:#e5effb; color:#235784; }
+        .flash-danger { background:#fbe5e4; color:#9c3029; }
+        button,input,select,textarea { font:inherit; }
+        @media(max-width:650px) {
+            .topbar { flex-wrap:wrap; gap:10px; }
+            .nav { order:3; width:100%; margin:0; justify-content:space-between; gap:8px; }
+            .user { margin-left:auto; }
+            main { padding:20px 14px 42px; }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="{{ url_for('delivery.index') }}">SUMAK · DELIVERY</a>
+        <nav class="nav" aria-label="Delivery navigation">
+            <a href="{{ url_for('delivery.index') }}">{% if session.role == 'driver' %}My routes{% else %}Route plans{% endif %}</a>
+            {% if session.role in ('admin', 'dispatcher') %}
+            <a href="{{ url_for('delivery.create_route') }}">＋ Add route</a>
+            {% endif %}
+            {% if session.role == 'admin' %}
+            <a href="{{ url_for('auth.users_list') }}">Users</a>
+            {% endif %}
+            {% if session.role == 'driver' %}
+            <a href="{{ url_for('delivery.index') }}#notifications">Notifications{% if delivery_unread_count %}<span class="badge">{{ delivery_unread_count }}</span>{% endif %}</a>
+            {% endif %}
+        </nav>
+        <span class="user">{{ session.full_name }}</span>
+        <a class="nav logout" href="{{ url_for('auth.logout') }}">Log out</a>
+    </header>
+    <main>
+        <div id="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for category, message in messages %}
+                    <p class="flash-{{ category if category in ['success', 'info', 'danger'] else 'info' }}">{{ message }}</p>
+                {% endfor %}
+            {% endwith %}
+        </div>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

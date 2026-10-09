@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SUMAK Hiring{% endblock %}</title>
+    <style>
+        :root { --ink:#263437; --sidebar:#203238; --surface:#f1f4f1; --paper:#fff; --line:#d9e1dc; --muted:#667477; --accent:#287a72; --accent-soft:#e1f0ec; }
+        * { box-sizing:border-box; }
+        body { margin:0; min-height:100vh; display:flex; background:var(--surface); color:var(--ink); font-family:'Segoe UI',sans-serif; }
+        a { color:inherit; text-decoration:none; }
+        button,input,select,textarea { font:inherit; }
+        .sidebar { position:fixed; inset:0 auto 0 0; z-index:2; display:flex; flex-direction:column; width:225px; background:var(--sidebar); color:#fff; transition:transform .18s ease; }
+        .sidebar.closed { transform:translateX(-100%); }
+        .brand { padding:23px 20px; border-bottom:1px solid #ffffff1c; }
+        .brand-name { color:#91d5c9; font-size:21px; font-weight:750; }
+        .brand-sub { margin-top:3px; color:#ffffff85; font-size:11px; letter-spacing:1px; }
+        .nav-label { margin:23px 20px 8px; color:#ffffff75; font-size:10px; font-weight:700; letter-spacing:1px; }
+        .nav-item { display:block; padding:11px 20px; border-left:3px solid transparent; color:#ffffffc2; font-size:13px; }
+        .nav-item:hover,.nav-item.active { background:#ffffff12; color:#fff; }
+        .nav-item.active { border-left-color:#91d5c9; }
+        .main { width:calc(100% - 225px); min-height:100vh; margin-left:225px; transition:margin-left .18s ease,width .18s ease; }
+        .main.expanded { width:100%; margin-left:0; }
+        .topbar { min-height:64px; display:flex; align-items:center; gap:13px; padding:10px 25px; border-bottom:1px solid var(--line); background:var(--paper); }
+        .sidebar-toggle { width:35px; height:35px; border:1px solid var(--line); border-radius:4px; background:transparent; color:var(--ink); cursor:pointer; }
+        .page-title { font-size:15px; font-weight:700; }
+        .topbar-right { display:flex; align-items:center; gap:13px; margin-left:auto; }
+        .user-badge { color:var(--muted); font-size:13px; }
+        .logout { padding:8px 11px; border-radius:4px; background:var(--sidebar); color:#fff; font-size:12px; }
+        .content { max-width:1500px; margin:0 auto; padding:25px; }
+        #flash-messages p { margin:0 0 13px; padding:10px 13px; border-radius:4px; font-size:13px; }
+        .flash-success { background:#e2f4e8; color:#17613a; }
+        .flash-info { background:#e5effb; color:#235784; }
+        .flash-danger { background:#fbe5e4; color:#9c3029; }
+        @media(max-width:760px) { .sidebar { box-shadow:10px 0 26px #0002; } .main { width:100%; margin-left:0; } .topbar { padding:10px 14px; } .content { padding:18px 14px; } .user-badge { display:none; } }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <aside class="sidebar" id="sidebar">
+        <a class="brand" href="{{ url_for('hiring.index') }}"><div class="brand-name">SUMAK</div><div class="brand-sub">TALENT ACQUISITION</div></a>
+        <div class="nav-label">HIRING</div>
+        <a class="nav-item {% if request.path == '/hiring' %}active{% endif %}" href="{{ url_for('hiring.index') }}">♙ &nbsp; Candidate pipeline</a>
+        {% if session.role in ['admin', 'recruiter', 'hiring_manager'] %}<a class="nav-item {% if request.path.startswith('/hiring/jobs') %}active{% endif %}" href="{{ url_for('hiring.jobs') }}">▤ &nbsp; Job openings</a>{% endif %}
+        <a class="nav-item" href="{{ url_for('hiring.careers') }}" target="_blank" rel="noopener">↗ &nbsp; Public careers page</a>
+        {% if session.role == 'admin' %}<div class="nav-label">ADMINISTRATION</div><a class="nav-item {% if request.path.startswith('/users') %}active{% endif %}" href="/users">♙ &nbsp; Users</a>{% endif %}
+    </aside>
+    <main class="main" id="main">
+        <header class="topbar">
+            <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle navigation">☰</button>
+            <div class="page-title">{% block page_title %}Candidate pipeline{% endblock %}</div>
+            <div class="topbar-right"><span class="user-badge">{{ session.full_name }}</span><a class="logout" href="/logout">Log out</a></div>
+        </header>
+        <section class="content">
+            <div id="flash-messages">{% with messages = get_flashed_messages(with_categories=true) %}{% for category, message in messages %}<p class="flash-{{ category if category in ['success', 'info', 'danger'] else 'info' }}">{{ message }}</p>{% endfor %}{% endwith %}</div>
+            {% block content %}{% endblock %}
+        </section>
+    </main>
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const main = document.getElementById('main');
+        const mobile = window.matchMedia('(max-width: 760px)').matches;
+        const key = 'sumak-hiring-sidebar';
+        const defaultOpen = !mobile;
+        function setOpen(open) {
+            sidebar.classList.toggle('closed', !open);
+            main.classList.toggle('expanded', !open || mobile);
+            localStorage.setItem(key, String(open));
+        }
+        setOpen(localStorage.getItem(key) === null ? defaultOpen : localStorage.getItem(key) === 'true');
+        document.getElementById('sidebarToggle').addEventListener('click', () => setOpen(sidebar.classList.contains('closed')));
+        setTimeout(() => { const messages = document.getElementById('flash-messages'); if (messages) messages.hidden = true; }, 3500);
+    </script>
+</body>
+</html>

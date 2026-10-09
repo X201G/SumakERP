@@ -1,0 +1,65 @@
+{% extends "base_ats.html" %}
+
+{% block title %}Job Openings - SUMAK Hiring{% endblock %}
+{% block page_title %}Job openings{% endblock %}
+{% block head %}
+<style>
+    .heading { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:20px; }
+    .heading h1 { margin:0; font-size:22px; }
+    .heading p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+    .action { display:inline-flex; align-items:center; justify-content:center; min-height:39px; padding:9px 14px; border:1px solid var(--accent); border-radius:4px; background:var(--accent); color:#fff; font-size:13px; font-weight:650; }
+    .job-list { border-top:1px solid var(--line); }
+    .job-row { display:grid; grid-template-columns:minmax(180px,1fr) minmax(260px,1.25fr) auto; align-items:center; gap:22px; padding:17px 3px; border-bottom:1px solid var(--line); }
+    .job-title { margin:0; font-size:14px; }
+    .meta { margin-top:5px; color:var(--muted); font-size:12px; }
+    .status { display:inline-block; margin-top:8px; padding:3px 7px; border-radius:3px; background:#edf0ed; color:#53615f; font-size:10px; font-weight:700; text-transform:uppercase; }
+    .status.open { background:var(--accent-soft); color:var(--accent); }
+    .share { min-width:0; }
+    .share label { display:block; margin-bottom:5px; color:var(--muted); font-size:10px; font-weight:700; text-transform:uppercase; }
+    .share-control { display:flex; gap:6px; }
+    .share-control input { width:100%; min-width:0; min-height:35px; padding:7px 8px; border:1px solid var(--line); border-radius:3px; background:#fff; color:var(--ink); font-size:11px; }
+    .copy,.edit { display:inline-flex; align-items:center; justify-content:center; min-height:35px; padding:7px 10px; border:1px solid var(--line); border-radius:3px; background:#fff; color:var(--ink); cursor:pointer; font-size:11px; white-space:nowrap; }
+    .edit { text-decoration:none; }
+    .share-disabled { color:var(--muted); font-size:12px; }
+    .empty { padding:42px 15px; color:var(--muted); text-align:center; }
+    @media(max-width:850px) { .job-row { grid-template-columns:1fr auto; gap:12px; } .share { grid-column:1/-1; grid-row:2; } }
+    @media(max-width:520px) { .heading { align-items:flex-start; flex-direction:column; } .job-row { grid-template-columns:1fr; } .share { grid-column:auto; grid-row:auto; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="heading"><div><h1>Job openings</h1><p>Publish a role, then use its application link as the external apply URL on LinkedIn.</p></div><a class="action" href="{{ url_for('hiring.create_job') }}">＋ Create opening</a></div>
+<div class="job-list">
+    {% for row in job_rows %}
+    <article class="job-row">
+        <div>
+            <h2 class="job-title">{{ row.job.title }}</h2>
+            <div class="meta">{{ row.job.location or 'Location not set' }} · {{ row.job.employment_type }} · {{ row.job.applicant_count }} applicant{{ '' if row.job.applicant_count == 1 else 's' }}</div>
+            <span class="status {{ row.job.status }}">{{ row.job.status }}</span>
+        </div>
+        <div class="share">
+            {% if row.job.status == 'open' %}
+            <label for="apply-url-{{ row.job.id }}">LinkedIn application URL</label>
+            <div class="share-control"><input id="apply-url-{{ row.job.id }}" readonly value="{{ row.apply_url }}" aria-label="LinkedIn application link for {{ row.job.title }}"><button class="copy" type="button" data-copy-target="apply-url-{{ row.job.id }}">Copy link</button></div>
+            {% else %}<span class="share-disabled">Set this opening to Open to accept applications.</span>{% endif %}
+        </div>
+        <a class="edit" href="{{ url_for('hiring.edit_job', job_id=row.job.id) }}">Edit</a>
+    </article>
+    {% else %}<div class="empty">No job openings yet. Create a role to publish its application page.</div>{% endfor %}
+</div>
+<script>
+    document.querySelectorAll('[data-copy-target]').forEach(button => {
+        button.addEventListener('click', async () => {
+            const input = document.getElementById(button.dataset.copyTarget);
+            try {
+                await navigator.clipboard.writeText(input.value);
+                button.textContent = 'Copied';
+            } catch {
+                input.select();
+                document.execCommand('copy');
+                button.textContent = 'Copied';
+            }
+            setTimeout(() => { button.textContent = 'Copy link'; }, 1600);
+        });
+    });
+</script>
+{% endblock %}

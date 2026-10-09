@@ -10,6 +10,59 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+
+def _allow_system_scoped_usernames(conn):
+    indexes = conn.execute("PRAGMA index_list('users')").fetchall()
+    has_global_username_constraint = False
+    for index in indexes:
+        if not index["unique"]:
+            continue
+        index_name = index["name"].replace('"', '""')
+        columns = conn.execute(f'PRAGMA index_info("{index_name}")').fetchall()
+        if [column["name"] for column in columns] == ["username"]:
+            has_global_username_constraint = True
+            break
+
+    if has_global_username_constraint:
+        conn.commit()
+        conn.execute("PRAGMA foreign_keys = OFF")
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("""
+                CREATE TABLE users_migrated (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    full_name TEXT,
+                    role TEXT NOT NULL DEFAULT 'staff',
+                    system TEXT NOT NULL DEFAULT 'distribution',
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.execute("""
+                INSERT INTO users_migrated
+                    (id, username, password_hash, full_name, role, system, is_active, created_at)
+                SELECT id, username, password_hash, full_name, role, system, is_active, created_at
+                FROM users
+            """)
+            conn.execute("DROP TABLE users")
+            conn.execute("ALTER TABLE users_migrated RENAME TO users")
+            conn.execute(
+                "CREATE UNIQUE INDEX idx_users_system_username ON users(username, system)"
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.execute("PRAGMA foreign_keys = ON")
+    else:
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_system_username ON users(username, system)"
+        )
+
+
 # ============================================
 # CREATE ALL TABLES
 # ============================================
@@ -31,6 +84,7 @@ def create_tables():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    _allow_system_scoped_usernames(conn)
 
     ## Create default admin logins the very first time the app runs (one per system)
     cursor.execute("SELECT COUNT(*) FROM users")
@@ -1368,6 +1422,80 @@ def create_tables():
     ''')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_project_task_notes_task ON project_task_notes(task_id, created_at)')
 
+    ## Hiring portal job postings and candidate pipeline
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS hiring_jobs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        location TEXT,
+        employment_type TEXT NOT NULL DEFAULT 'Full-time',
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'draft',
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_hiring_jobs_status ON hiring_jobs(status)')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS hiring_candidates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        full_name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
+        position TEXT NOT NULL,
+        source TEXT,
+        status TEXT NOT NULL DEFAULT 'new',
+        rating INTEGER,
+        resume_url TEXT,
+        notes TEXT,
+        job_id INTEGER,
+        created_by INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (job_id) REFERENCES hiring_jobs(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute("PRAGMA table_info(hiring_candidates)")
+    hiring_candidate_columns = {row["name"]: row for row in cursor.fetchall()}
+    if "job_id" not in hiring_candidate_columns or hiring_candidate_columns["created_by"]["notnull"]:
+        cursor.execute('''
+            CREATE TABLE hiring_candidates_migrated (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            full_name TEXT NOT NULL,
+            email TEXT,
+            phone TEXT,
+            position TEXT NOT NULL,
+            source TEXT,
+            status TEXT NOT NULL DEFAULT 'new',
+            rating INTEGER,
+            resume_url TEXT,
+            notes TEXT,
+            job_id INTEGER,
+            created_by INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES hiring_jobs(id),
+            FOREIGN KEY (created_by) REFERENCES users(id)
+            )
+        ''')
+        job_id_expression = "job_id" if "job_id" in hiring_candidate_columns else "NULL"
+        cursor.execute(f'''
+            INSERT INTO hiring_candidates_migrated
+                (id, full_name, email, phone, position, source, status, rating, resume_url,
+                 notes, job_id, created_by, created_at, updated_at)
+            SELECT id, full_name, email, phone, position, source, status, rating, resume_url,
+                   notes, {job_id_expression}, created_by, created_at, updated_at
+            FROM hiring_candidates
+        ''')
+        cursor.execute('DROP TABLE hiring_candidates')
+        cursor.execute('ALTER TABLE hiring_candidates_migrated RENAME TO hiring_candidates')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_hiring_candidates_status ON hiring_candidates(status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_hiring_candidates_position ON hiring_candidates(position)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_hiring_candidates_job ON hiring_candidates(job_id)')
+
     ## Stock Movements
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS stock_movements (
@@ -1383,6 +1511,64 @@ def create_tables():
         FOREIGN KEY (product_id) REFERENCES products(id)
         )
     ''')
+
+    ## Delivery routes and in-app driver notifications
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS delivery_routes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        vehicle TEXT,
+        route_date DATE NOT NULL,
+        driver_id INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'assigned',
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (driver_id) REFERENCES users(id),
+        FOREIGN KEY (created_by) REFERENCES users(id)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS delivery_route_stops (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        route_id INTEGER NOT NULL,
+        stop_order INTEGER NOT NULL,
+        customer_name TEXT NOT NULL,
+        customer_phone TEXT,
+        address TEXT,
+        maps_url TEXT,
+        FOREIGN KEY (route_id) REFERENCES delivery_routes(id) ON DELETE CASCADE,
+        UNIQUE (route_id, stop_order)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS delivery_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        route_id INTEGER NOT NULL,
+        message TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        read_at DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (route_id) REFERENCES delivery_routes(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS delivery_push_subscriptions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        endpoint TEXT NOT NULL UNIQUE,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_delivery_routes_driver_date ON delivery_routes(driver_id, route_date)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_delivery_route_stops_route ON delivery_route_stops(route_id, stop_order)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_delivery_notifications_user_read ON delivery_notifications(user_id, read_at)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_delivery_push_subscriptions_user ON delivery_push_subscriptions(user_id)')
 
     conn.commit()   
     conn.close()

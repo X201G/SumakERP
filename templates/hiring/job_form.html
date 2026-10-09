@@ -1,0 +1,39 @@
+{% extends "base_ats.html" %}
+
+{% block title %}{{ page_heading }} - SUMAK Hiring{% endblock %}
+{% block page_title %}{{ page_heading }}{% endblock %}
+{% block head %}
+<style>
+    .form-wrap { max-width:900px; }
+    .intro { margin-bottom:18px; }
+    .intro h1 { margin:0; font-size:22px; }
+    .intro p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+    .panel { padding:22px; border:1px solid var(--line); border-radius:5px; background:var(--paper); }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+    .field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .field.wide { grid-column:1/-1; }
+    .field label { font-size:12px; font-weight:650; }
+    .field input,.field select,.field textarea { width:100%; min-height:39px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--surface); color:var(--ink); }
+    .field textarea { min-height:190px; resize:vertical; }
+    .field small { color:var(--muted); font-size:11px; }
+    .actions { display:flex; justify-content:flex-end; gap:9px; margin-top:19px; }
+    .button { display:inline-flex; align-items:center; justify-content:center; min-height:38px; padding:8px 14px; border:1px solid var(--line); border-radius:4px; background:transparent; color:var(--ink); cursor:pointer; }
+    .button.primary { border-color:var(--accent); background:var(--accent); color:white; font-weight:650; }
+    @media(max-width:600px) { .fields { grid-template-columns:1fr; } .field.wide { grid-column:auto; } .panel { padding:16px; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="form-wrap">
+    <div class="intro"><h1>{{ page_heading }}</h1><p>Open roles appear on the public careers page. Draft and closed roles cannot receive applications.</p></div>
+    <form class="panel" method="POST">
+        <div class="fields">
+            <div class="field"><label for="title">Job title *</label><input id="title" name="title" maxlength="160" value="{{ job.title if job else '' }}" required autofocus></div>
+            <div class="field"><label for="employment_type">Employment type</label><select id="employment_type" name="employment_type">{% for employment_type in employment_types %}<option value="{{ employment_type }}" {% if job and job.employment_type == employment_type or not job and employment_type == 'Full-time' %}selected{% endif %}>{{ employment_type }}</option>{% endfor %}</select></div>
+            <div class="field"><label for="location">Location</label><input id="location" name="location" maxlength="160" placeholder="City, region, or Remote" value="{{ job.location or '' if job else '' }}"></div>
+            <div class="field"><label for="status">Publication status</label><select id="status" name="status">{% for status in statuses %}<option value="{{ status }}" {% if job and job.status == status or not job and status == 'draft' %}selected{% endif %}>{{ status|title }}</option>{% endfor %}</select></div>
+            <div class="field wide"><label for="description">Role description</label><textarea id="description" name="description" maxlength="12000" placeholder="Responsibilities, qualifications, and what the role offers">{{ job.description or '' if job else '' }}</textarea><small>Do not include private applicant information here. This description is publicly visible when the role is open.</small></div>
+        </div>
+        <div class="actions"><a class="button" href="{{ url_for('hiring.jobs') }}">Cancel</a><button class="button primary" type="submit">{{ 'Save changes' if job else 'Create opening' }}</button></div>
+    </form>
+</div>
+{% endblock %}

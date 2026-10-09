@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application received - SUMAK</title>
+    <style>
+        * { box-sizing:border-box; }
+        body { margin:0; min-height:100vh; display:grid; place-items:center; padding:22px; background:#f1f4f1; color:#263437; font-family:'Segoe UI',sans-serif; }
+        main { width:min(100%,560px); padding:35px 30px; border-top:4px solid #287a72; background:#fff; }
+        h1 { margin:0; font-size:24px; }
+        p { color:#667477; font-size:14px; line-height:1.6; }
+        a { display:inline-flex; margin-top:10px; color:#287a72; font-size:13px; font-weight:650; text-decoration:none; }
+    </style>
+</head>
+<body>
+    <main><h1>Application received</h1><p>Thank you for applying. Your application has been sent to the SUMAK hiring team.</p><a href="{{ url_for('hiring.careers') }}">View other openings</a></main>
+</body>
+</html>

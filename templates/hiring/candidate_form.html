@@ -1,0 +1,43 @@
+{% extends "base_ats.html" %}
+
+{% block title %}{{ page_heading }} - SUMAK Hiring{% endblock %}
+{% block page_title %}{{ page_heading }}{% endblock %}
+{% block head %}
+<style>
+    .form-wrap { max-width:880px; }
+    .form-heading { margin-bottom:18px; }
+    .form-heading h1 { margin:0; font-size:22px; }
+    .form-heading p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+    .panel { padding:22px; border:1px solid var(--line); border-radius:5px; background:var(--paper); }
+    .fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+    .field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .field.wide { grid-column:1/-1; }
+    .field label { font-size:12px; font-weight:650; }
+    .field input,.field select,.field textarea { width:100%; min-height:39px; padding:8px 10px; border:1px solid var(--line); border-radius:4px; background:var(--surface); color:var(--ink); }
+    .field textarea { min-height:120px; resize:vertical; }
+    .help { color:var(--muted); font-size:11px; }
+    .actions { display:flex; justify-content:flex-end; gap:9px; margin-top:19px; }
+    .button { display:inline-flex; align-items:center; justify-content:center; min-height:38px; padding:8px 14px; border:1px solid var(--line); border-radius:4px; background:transparent; color:var(--ink); cursor:pointer; }
+    .button.primary { border-color:var(--accent); background:var(--accent); color:white; font-weight:650; }
+    @media(max-width:600px) { .fields { grid-template-columns:1fr; } .field.wide { grid-column:auto; } .panel { padding:16px; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="form-wrap">
+    <div class="form-heading"><h1>{{ page_heading }}</h1><p>Keep candidate contact details and hiring decisions in one record.</p></div>
+    <form class="panel" method="POST">
+        <div class="fields">
+            <div class="field"><label for="full_name">Full name *</label><input id="full_name" name="full_name" maxlength="160" value="{{ candidate.full_name if candidate else '' }}" required autofocus></div>
+            <div class="field"><label for="position">Position *</label><input id="position" name="position" maxlength="160" value="{{ candidate.position if candidate else '' }}" required></div>
+            <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" value="{{ candidate.email or '' if candidate else '' }}"></div>
+            <div class="field"><label for="phone">Phone</label><input id="phone" name="phone" type="tel" maxlength="40" value="{{ candidate.phone or '' if candidate else '' }}"></div>
+            <div class="field"><label for="source">Source</label><input id="source" name="source" maxlength="120" placeholder="Referral, careers page, agency" value="{{ candidate.source or '' if candidate else '' }}"></div>
+            <div class="field"><label for="status">Hiring stage</label><select id="status" name="status">{% for status in statuses %}<option value="{{ status }}" {% if candidate and candidate.status == status or not candidate and status == 'new' %}selected{% endif %}>{{ status_labels[status] }}</option>{% endfor %}</select></div>
+            <div class="field"><label for="rating">Rating</label><select id="rating" name="rating"><option value="">Not rated</option>{% for rating in range(1, 6) %}<option value="{{ rating }}" {% if candidate and candidate.rating == rating %}selected{% endif %}>{{ rating }} / 5</option>{% endfor %}</select></div>
+            <div class="field"><label for="resume_url">Resume link</label><input id="resume_url" name="resume_url" type="url" maxlength="500" placeholder="https://" value="{{ candidate.resume_url or '' if candidate else '' }}"><span class="help">Use a restricted-access link; avoid public resume URLs.</span></div>
+            <div class="field wide"><label for="notes">Interview notes and decision context</label><textarea id="notes" name="notes" maxlength="10000">{{ candidate.notes or '' if candidate else '' }}</textarea></div>
+        </div>
+        <div class="actions"><a class="button" href="{{ url_for('hiring.index') }}">Cancel</a><button class="button primary" type="submit">{{ 'Save candidate' if candidate else 'Add to pipeline' }}</button></div>
+    </form>
+</div>
+{% endblock %}

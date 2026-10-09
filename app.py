@@ -1,4 +1,4 @@
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, redirect, render_template, request, send_from_directory, session, url_for
 from database import create_tables, get_connection
 from modules.auth import auth, system_required
 
@@ -23,8 +23,24 @@ from modules.resharpening import resharpening
 app.register_blueprint(resharpening)
 from modules.projects import projects
 app.register_blueprint(projects)
+from modules.hiring import hiring
+app.register_blueprint(hiring)
+from modules.delivery import delivery
+app.register_blueprint(delivery)
 from modules.permissions import has_permission
 app.jinja_env.globals["has_perm"] = has_permission
+
+
+@app.route("/service-worker.js")
+def delivery_service_worker():
+    response = send_from_directory(
+        app.static_folder,
+        "delivery-service-worker.js",
+        mimetype="application/javascript",
+    )
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 @app.route("/")
