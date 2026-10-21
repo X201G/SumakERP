@@ -1,9 +1,19 @@
+import logging
+
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
-from database import get_connection
+import database
+from database import get_connection as _get_connection
+from modules.document_database import (
+    install_document_connection_cleanup,
+    managed_document_connection,
+)
 from modules.auth import require_system
 
 hiring = Blueprint("hiring", __name__)
+get_connection = managed_document_connection(_get_connection)
+install_document_connection_cleanup(hiring)
+logger = logging.getLogger(__name__)
 PUBLIC_ENDPOINTS = {"hiring.careers", "hiring.apply", "hiring.application_received"}
 JOB_STATUSES = ("draft", "open", "closed")
 EMPLOYMENT_TYPES = ("Full-time", "Part-time", "Contract", "Temporary", "Internship")
@@ -31,65 +41,102 @@ def _can_edit():
     return session.get("role") in EDIT_ROLES
 
 
+def _database_failure(error, conn):
+    if not database.is_database_error(error):
+        return None
+
+    if conn is not None:
+        try:
+            conn.rollback()
+        except Exception as rollback_error:
+            logger.error(
+                "Hiring database rollback failed (%s).",
+                type(rollback_error).__name__,
+            )
+    logger.warning("Hiring database operation failed (%s).", type(error).__name__)
+    return "Hiring service is temporarily unavailable. Please try again later.", 503
+
+
 @hiring.route("/careers")
 def careers():
-    conn = get_connection()
-    jobs = conn.execute(
-        "SELECT * FROM hiring_jobs WHERE status = 'open' ORDER BY created_at DESC, id DESC"
-    ).fetchall()
-    conn.close()
+    conn = None
+    try:
+        conn = get_connection()
+        jobs = conn.execute(
+            "SELECT * FROM hiring_jobs WHERE status = 'open' ORDER BY created_at DESC, id DESC"
+        ).fetchall()
+    except Exception as error:
+        response = _database_failure(error, conn)
+        if response is not None:
+            return response
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
     return render_template("hiring/careers.html", jobs=jobs)
 
 
 @hiring.route("/careers/<int:job_id>/apply", methods=["GET", "POST"])
 def apply(job_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM hiring_jobs WHERE id = ? AND status = 'open'", (job_id,))
-    job = cursor.fetchone()
-    if not job:
-        conn.close()
-        return "Job opening not found", 404
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        placeholder = "%s" if database.is_postgres_configured() else "?"
+        cursor.execute(
+            f"SELECT * FROM hiring_jobs WHERE id = {placeholder} AND status = 'open'",
+            (job_id,),
+        )
+        job = cursor.fetchone()
+        if not job:
+            return "Job opening not found", 404
 
-    source = "LinkedIn" if request.args.get("source", "").lower() == "linkedin" else "Careers page"
-    if request.method == "POST":
-        if request.form.get("website", "").strip():
-            conn.close()
-            return redirect(url_for("hiring.application_received"))
-        full_name = request.form.get("full_name", "").strip()
-        email = request.form.get("email", "").strip()
-        phone = request.form.get("phone", "").strip()
-        resume_url = request.form.get("resume_url", "").strip()
-        cover_note = request.form.get("cover_note", "").strip()
-        if not full_name or len(full_name) > 160:
-            flash("Enter your name (up to 160 characters).", "danger")
-        elif not email or len(email) > 254 or "@" not in email:
-            flash("Enter a valid email address.", "danger")
-        elif len(phone) > 40 or len(resume_url) > 500 or len(cover_note) > 10000:
-            flash("One or more fields exceed the allowed length.", "danger")
-        elif not request.form.get("privacy_consent"):
-            flash("Please confirm the application data notice to continue.", "danger")
-        else:
-            cursor.execute(
-                """INSERT INTO hiring_candidates
-                   (full_name, email, phone, position, source, status, resume_url, notes, job_id)
-                   VALUES (?, ?, ?, ?, ?, 'new', ?, ?, ?)""",
-                (
-                    full_name,
-                    email,
-                    phone or None,
-                    job["title"],
-                    source,
-                    resume_url or None,
-                    cover_note or None,
-                    job_id,
-                ),
-            )
-            conn.commit()
-            conn.close()
-            return redirect(url_for("hiring.application_received"))
+        source = "LinkedIn" if request.args.get("source", "").lower() == "linkedin" else "Careers page"
+        if request.method == "POST":
+            if request.form.get("website", "").strip():
+                return redirect(url_for("hiring.application_received"))
+            full_name = request.form.get("full_name", "").strip()
+            email = request.form.get("email", "").strip()
+            phone = request.form.get("phone", "").strip()
+            resume_url = request.form.get("resume_url", "").strip()
+            cover_note = request.form.get("cover_note", "").strip()
+            if not full_name or len(full_name) > 160:
+                flash("Enter your name (up to 160 characters).", "danger")
+            elif not email or len(email) > 254 or "@" not in email:
+                flash("Enter a valid email address.", "danger")
+            elif len(phone) > 40 or len(resume_url) > 500 or len(cover_note) > 10000:
+                flash("One or more fields exceed the allowed length.", "danger")
+            elif not request.form.get("privacy_consent"):
+                flash("Please confirm the application data notice to continue.", "danger")
+            else:
+                values = ", ".join([placeholder] * 5 + ["'new'"] + [placeholder] * 3)
+                cursor.execute(
+                    """INSERT INTO hiring_candidates
+                       (full_name, email, phone, position, source, status, resume_url, notes, job_id)
+                       VALUES ({})""".format(values),
+                    (
+                        full_name,
+                        email,
+                        phone or None,
+                        job["title"],
+                        source,
+                        resume_url or None,
+                        cover_note or None,
+                        job_id,
+                    ),
+                )
+                conn.commit()
+                return redirect(url_for("hiring.application_received"))
 
-    conn.close()
+    except Exception as error:
+        response = _database_failure(error, conn)
+        if response is not None:
+            return response
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
+
     return render_template("hiring/apply.html", job=job)
 
 
@@ -231,7 +278,9 @@ def index():
     candidates = cursor.fetchall()
     cursor.execute("SELECT status, COUNT(*) AS count FROM hiring_candidates GROUP BY status")
     counts = {row["status"]: row["count"] for row in cursor.fetchall()}
-    cursor.execute("SELECT DISTINCT position FROM hiring_candidates ORDER BY position COLLATE NOCASE")
+    cursor.execute(
+        "SELECT DISTINCT position FROM hiring_candidates ORDER BY LOWER(position), position"
+    )
     positions = [row["position"] for row in cursor.fetchall()]
     conn.close()
     return render_template(

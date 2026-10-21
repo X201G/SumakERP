@@ -1,5 +1,6 @@
 import sys
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -75,6 +76,10 @@ def test_dispatcher_assigns_route_driver_gets_notification_and_completes(deliver
     )
     assert response.status_code == 302
     route_id = int(response.headers["Location"].rsplit("/", 1)[1])
+    dispatcher_home = delivery_client.get("/delivery")
+    assert dispatcher_home.status_code == 200
+    assert b"Driver: Driver One" in dispatcher_home.data
+    assert b"2 customers" in dispatcher_home.data
     dispatcher_detail = delivery_client.get(f"/delivery/routes/{route_id}")
     assert dispatcher_detail.status_code == 200
     assert b"Customer One" in dispatcher_detail.data
@@ -92,6 +97,7 @@ def test_dispatcher_assigns_route_driver_gets_notification_and_completes(deliver
     driver_home = delivery_client.get("/delivery")
     assert b"New route plan assigned: North side deliveries" in driver_home.data
     assert b"North side deliveries" in driver_home.data
+    assert b"2 customers" in driver_home.data
     driver_detail = delivery_client.get(f"/delivery/routes/{route_id}")
     assert b"Customer One" in driver_detail.data
     assert b"+1 555 0100" in driver_detail.data
@@ -125,6 +131,32 @@ def test_delivery_role_boundaries_and_route_validation(delivery_client):
     conn = database.get_connection()
     driver_id = conn.execute("SELECT id FROM users WHERE username = 'driver'").fetchone()["id"]
     conn.close()
+
+
+def test_invalid_delivery_date_renders_validation_page(delivery_client):
+    login_as(delivery_client, "dispatcher")
+    conn = database.get_connection()
+    driver_id = conn.execute(
+        "SELECT id FROM users WHERE username = 'driver'"
+    ).fetchone()["id"]
+    conn.close()
+
+    response = delivery_client.post(
+        "/delivery/routes/new",
+        data={
+            "title": "Invalid route date",
+            "route_date": "not-a-date",
+            "driver_id": str(driver_id),
+            "stop_count": "1",
+            "stops-0-customer_name": "Customer",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Choose a valid route date." in response.data
+    conn = database.get_connection()
+    assert conn.execute("SELECT COUNT(*) FROM delivery_routes").fetchone()[0] == 0
+    conn.close()
     response = delivery_client.post(
         "/delivery/routes/new",
         data={
@@ -143,6 +175,52 @@ def test_delivery_role_boundaries_and_route_validation(delivery_client):
     conn = database.get_connection()
     assert conn.execute("SELECT COUNT(*) FROM delivery_routes").fetchone()[0] == 0
     conn.close()
+
+
+def test_route_date_binding_is_backend_compatible(monkeypatch):
+    from datetime import date
+
+    monkeypatch.setattr(database, "is_postgres_configured", lambda: True)
+    assert delivery_module._route_date_value("2026-10-20") == date(2026, 10, 20)
+    monkeypatch.setattr(database, "is_postgres_configured", lambda: False)
+    assert delivery_module._route_date_value("2026-10-20") == "2026-10-20"
+
+
+def test_post_commit_push_database_failure_does_not_hide_created_route(
+    delivery_client, monkeypatch
+):
+    login_as(delivery_client, "dispatcher")
+    connection = database.get_connection()
+    driver_id = connection.execute(
+        "SELECT id FROM users WHERE username = 'driver'"
+    ).fetchone()["id"]
+    connection.close()
+
+    def fail_push(*_args, **_kwargs):
+        raise sqlite3.OperationalError("test-only push lookup failure")
+
+    monkeypatch.setattr(delivery_module, "_send_driver_push", fail_push)
+    response = delivery_client.post(
+        "/delivery/routes/new",
+        data={
+            "title": "Route with unavailable push",
+            "route_date": "2026-10-20",
+            "driver_id": str(driver_id),
+            "stop_count": "1",
+            "stops-0-customer_name": "Customer",
+            "stops-0-address": "1 Main Street",
+        },
+    )
+
+    assert response.status_code == 302
+    connection = database.get_connection()
+    try:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM delivery_routes WHERE title = ?",
+            ("Route with unavailable push",),
+        ).fetchone()[0] == 1
+    finally:
+        connection.close()
 
 
 def test_delivery_system_setup_from_distribution_admin(delivery_client):

@@ -1,12 +1,30 @@
 from datetime import date
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
 
+import database
 from database import get_connection
 from modules.auth import require_system
 
 projects = Blueprint("projects", __name__)
 projects.before_request(require_system("projects"))
+
+
+def _placeholder():
+    return "%s" if database.is_postgres_configured() else "?"
+
+
+def _get_connection():
+    conn = get_connection()
+    g.setdefault("_projects_connections", []).append(conn)
+    return conn
+
+
+@projects.teardown_app_request
+def _close_connections(_error=None):
+    for conn in g.pop("_projects_connections", []):
+        conn.close()
+
 
 STAGES = ("backlog", "planning", "in_progress", "on_hold", "completed")
 STAGE_LABELS = {
@@ -50,16 +68,16 @@ def inject_sidebar_projects():
     if not user_id:
         return {"sidebar_projects": []}
 
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        """SELECT id, name FROM projects
-           WHERE (? = 1 OR created_by = ? OR EXISTS (
+        f"""SELECT id, name FROM projects
+           WHERE ({_placeholder()} = 1 OR created_by = {_placeholder()} OR EXISTS (
                SELECT 1 FROM project_user_shares
                WHERE project_user_shares.project_id = projects.id
-                 AND project_user_shares.user_id = ?
+                 AND project_user_shares.user_id = {_placeholder()}
            ))
-           ORDER BY name COLLATE NOCASE, id""",
+           ORDER BY LOWER(name), id""",
         (int(session.get("role") == "admin"), user_id, user_id),
     )
     sidebar_projects = cursor.fetchall()
@@ -77,11 +95,18 @@ def _valid_date(value):
         return False
 
 
+def _date_value(value):
+    if not value:
+        return None
+    parsed = date.fromisoformat(value)
+    return parsed if database.is_postgres_configured() else parsed.isoformat()
+
+
 def _get_project(cursor, project_id):
     cursor.execute(
-        """SELECT projects.*, users.full_name AS owner_name, users.username AS owner_username
+        f"""SELECT projects.*, users.full_name AS owner_name, users.username AS owner_username
            FROM projects LEFT JOIN users ON users.id = projects.owner_id
-           WHERE projects.id = ?""",
+           WHERE projects.id = {_placeholder()}""",
         (project_id,),
     )
     return cursor.fetchone()
@@ -92,7 +117,7 @@ def _can_view_project(cursor, project):
     if session.get("role") == "admin" or project["created_by"] == user_id:
         return True
     cursor.execute(
-        "SELECT 1 FROM project_user_shares WHERE project_id = ? AND user_id = ?",
+        f"SELECT 1 FROM project_user_shares WHERE project_id = {_placeholder()} AND user_id = {_placeholder()}",
         (project["id"], user_id),
     )
     return cursor.fetchone() is not None
@@ -113,7 +138,7 @@ def _accessible_project(cursor, project_id, write=False):
 
 def _get_task(cursor, project_id, task_id):
     cursor.execute(
-        "SELECT * FROM project_tasks WHERE id = ? AND project_id = ?",
+        f"SELECT * FROM project_tasks WHERE id = {_placeholder()} AND project_id = {_placeholder()}",
         (task_id, project_id),
     )
     return cursor.fetchone()
@@ -121,21 +146,22 @@ def _get_task(cursor, project_id, task_id):
 
 @projects.route("/projects")
 def index():
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        """SELECT projects.*, users.full_name AS owner_name, users.username AS owner_username,
-                  COUNT(project_tasks.id) AS task_count,
-                  COALESCE(SUM(project_tasks.is_complete), 0) AS completed_tasks
+        f"""SELECT projects.*, users.full_name AS owner_name, users.username AS owner_username,
+                  (SELECT COUNT(*) FROM project_tasks
+                   WHERE project_tasks.project_id = projects.id) AS task_count,
+                  (SELECT COALESCE(SUM(project_tasks.is_complete), 0)
+                   FROM project_tasks
+                   WHERE project_tasks.project_id = projects.id) AS completed_tasks
            FROM projects
            LEFT JOIN users ON users.id = projects.owner_id
-           LEFT JOIN project_tasks ON project_tasks.project_id = projects.id
-           WHERE (? = 1 OR projects.created_by = ? OR EXISTS (
+           WHERE ({_placeholder()} = 1 OR projects.created_by = {_placeholder()} OR EXISTS (
                SELECT 1 FROM project_user_shares
                WHERE project_user_shares.project_id = projects.id
-                 AND project_user_shares.user_id = ?
+                 AND project_user_shares.user_id = {_placeholder()}
            ))
-           GROUP BY projects.id
            ORDER BY projects.updated_at DESC, projects.id DESC""",
         (int(session.get("role") == "admin"), session["user_id"], session["user_id"]),
     )
@@ -162,7 +188,7 @@ def index():
 def create_project():
     if not _can_edit_projects():
         return "Forbidden", 403
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     users = _project_users(cursor)
 
@@ -178,22 +204,27 @@ def create_project():
             owner_id = request.form.get("owner_id", type=int) or None
             if owner_id and not any(user["id"] == owner_id for user in users):
                 owner_id = None
-            cursor.execute(
-                """INSERT INTO projects
+            project_sql = f"""INSERT INTO projects
                    (name, description, client, stage, priority, owner_id, start_date, due_date, created_by)
-                   VALUES (?, ?, ?, 'backlog', ?, ?, ?, ?, ?)""",
-                (
-                    name,
-                    request.form.get("description", "").strip(),
-                    request.form.get("client", "").strip(),
-                    request.form.get("priority", "normal") if request.form.get("priority") in PRIORITIES else "normal",
-                    owner_id,
-                    start_date,
-                    due_date,
-                    session["user_id"],
-                ),
+                   VALUES ({_placeholder()}, {_placeholder()}, {_placeholder()}, 'backlog',
+                           {_placeholder()}, {_placeholder()}, {_placeholder()}, {_placeholder()},
+                           {_placeholder()})"""
+            project_values = (
+                name,
+                request.form.get("description", "").strip(),
+                request.form.get("client", "").strip(),
+                request.form.get("priority", "normal") if request.form.get("priority") in PRIORITIES else "normal",
+                owner_id,
+                _date_value(start_date),
+                _date_value(due_date),
+                session["user_id"],
             )
-            project_id = cursor.lastrowid
+            if database.is_postgres_configured():
+                cursor.execute(project_sql + " RETURNING id", project_values)
+                project_id = cursor.fetchone()[0]
+            else:
+                cursor.execute(project_sql, project_values)
+                project_id = cursor.lastrowid
             conn.commit()
             conn.close()
             flash("Project created.", "success")
@@ -211,7 +242,7 @@ def create_project():
 
 @projects.route("/projects/<int:project_id>")
 def detail(project_id):
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id)
     if error_status:
@@ -221,15 +252,18 @@ def detail(project_id):
         return "Forbidden", error_status
 
     cursor.execute(
-        """SELECT project_tasks.*, users.full_name AS assignee_name, users.username AS assignee_username
+        f"""SELECT project_tasks.*, users.full_name AS assignee_name, users.username AS assignee_username
            FROM project_tasks LEFT JOIN users ON users.id = project_tasks.assigned_to
-           WHERE project_tasks.project_id = ?
+           WHERE project_tasks.project_id = {_placeholder()}
            ORDER BY project_tasks.is_complete, project_tasks.due_date IS NULL, project_tasks.due_date, project_tasks.id DESC""",
         (project_id,),
     )
     tasks = cursor.fetchall()
     users = _project_users(cursor)
-    cursor.execute("SELECT user_id FROM project_user_shares WHERE project_id = ?", (project_id,))
+    cursor.execute(
+        f"SELECT user_id FROM project_user_shares WHERE project_id = {_placeholder()}",
+        (project_id,),
+    )
     shared_user_ids = {row["user_id"] for row in cursor.fetchall()}
     conn.close()
     return render_template(
@@ -252,7 +286,7 @@ def detail(project_id):
 
 @projects.route("/projects/<int:project_id>/update", methods=["POST"])
 def update_project(project_id):
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id, write=True)
     if error_status:
@@ -290,10 +324,13 @@ def update_project(project_id):
         flash(error, "danger")
     else:
         cursor.execute(
-            """UPDATE projects
-               SET name = ?, description = ?, client = ?, stage = ?, priority = ?, owner_id = ?,
-                   start_date = ?, due_date = ?, updated_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
+            f"""UPDATE projects
+               SET name = {_placeholder()}, description = {_placeholder()},
+                   client = {_placeholder()}, stage = {_placeholder()},
+                   priority = {_placeholder()}, owner_id = {_placeholder()},
+                   start_date = {_placeholder()}, due_date = {_placeholder()},
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE id = {_placeholder()}""",
             (
                 name,
                 data.get("description", "").strip(),
@@ -301,8 +338,8 @@ def update_project(project_id):
                 stage,
                 priority,
                 owner_id,
-                start_date,
-                due_date,
+                _date_value(start_date),
+                _date_value(due_date),
                 project_id,
             ),
         )
@@ -317,7 +354,7 @@ def update_project(project_id):
 
 @projects.route("/projects/<int:project_id>/share", methods=["POST"])
 def share_project(project_id):
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id)
     if error_status:
@@ -338,9 +375,13 @@ def share_project(project_id):
         conn.close()
         return "Choose active Projects users only.", 400
 
-    cursor.execute("DELETE FROM project_user_shares WHERE project_id = ?", (project_id,))
+    cursor.execute(
+        f"DELETE FROM project_user_shares WHERE project_id = {_placeholder()}",
+        (project_id,),
+    )
     cursor.executemany(
-        "INSERT INTO project_user_shares (project_id, user_id, shared_by) VALUES (?, ?, ?)",
+        f"""INSERT INTO project_user_shares (project_id, user_id, shared_by)
+            VALUES ({_placeholder()}, {_placeholder()}, {_placeholder()})""",
         [(project_id, user_id, session["user_id"]) for user_id in requested_user_ids],
     )
     conn.commit()
@@ -351,7 +392,7 @@ def share_project(project_id):
 
 @projects.route("/projects/<int:project_id>/delete", methods=["POST"])
 def delete_project(project_id):
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id, write=True)
     if error_status:
@@ -360,12 +401,23 @@ def delete_project(project_id):
             return render_template("projects/not_found.html"), 404
         return "Forbidden", error_status
     cursor.execute(
-        "DELETE FROM project_task_notes WHERE task_id IN (SELECT id FROM project_tasks WHERE project_id = ?)",
+        f"""DELETE FROM project_task_notes
+            WHERE task_id IN (
+                SELECT id FROM project_tasks WHERE project_id = {_placeholder()}
+            )""",
         (project_id,),
     )
-    cursor.execute("DELETE FROM project_tasks WHERE project_id = ?", (project_id,))
-    cursor.execute("DELETE FROM project_user_shares WHERE project_id = ?", (project_id,))
-    cursor.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    cursor.execute(
+        f"DELETE FROM project_tasks WHERE project_id = {_placeholder()}",
+        (project_id,),
+    )
+    cursor.execute(
+        f"DELETE FROM project_user_shares WHERE project_id = {_placeholder()}",
+        (project_id,),
+    )
+    cursor.execute(
+        f"DELETE FROM projects WHERE id = {_placeholder()}", (project_id,)
+    )
     conn.commit()
     conn.close()
     flash("Project deleted.", "success")
@@ -389,7 +441,7 @@ def add_task(project_id):
         flash("Choose a valid task stage.", "danger")
         return redirect(url_for("projects.detail", project_id=project_id))
 
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id, write=True)
     if error_status:
@@ -398,19 +450,25 @@ def add_task(project_id):
             return render_template("projects/not_found.html"), 404
         return "Forbidden", error_status
     cursor.execute(
-        """INSERT INTO project_tasks (project_id, title, details, due_date, stage, is_complete, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        f"""INSERT INTO project_tasks
+               (project_id, title, details, due_date, stage, is_complete, created_by)
+           VALUES ({_placeholder()}, {_placeholder()}, {_placeholder()},
+                   {_placeholder()}, {_placeholder()}, {_placeholder()},
+                   {_placeholder()})""",
         (
             project_id,
             title,
             request.form.get("details", "").strip(),
-            due_date,
+            _date_value(due_date),
             stage,
             int(stage == "completed"),
             session["user_id"],
         ),
     )
-    cursor.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+    cursor.execute(
+        f"UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = {_placeholder()}",
+        (project_id,),
+    )
     conn.commit()
     conn.close()
     flash("Task added.", "success")
@@ -419,7 +477,7 @@ def add_task(project_id):
 
 @projects.route("/projects/<int:project_id>/tasks/<int:task_id>/toggle", methods=["POST"])
 def toggle_task(project_id, task_id):
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id, write=True)
     if error_status:
@@ -428,17 +486,20 @@ def toggle_task(project_id, task_id):
             return render_template("projects/not_found.html"), 404
         return "Forbidden", error_status
     cursor.execute(
-        """UPDATE project_tasks
+        f"""UPDATE project_tasks
            SET is_complete = CASE is_complete WHEN 1 THEN 0 ELSE 1 END,
                stage = CASE stage WHEN 'completed' THEN 'awaiting_response' ELSE 'completed' END,
                updated_at = CURRENT_TIMESTAMP
-           WHERE id = ? AND project_id = ?""",
+           WHERE id = {_placeholder()} AND project_id = {_placeholder()}""",
         (task_id, project_id),
     )
     if cursor.rowcount == 0:
         conn.close()
         return render_template("projects/not_found.html"), 404
-    cursor.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+    cursor.execute(
+        f"UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = {_placeholder()}",
+        (project_id,),
+    )
     conn.commit()
     conn.close()
     return redirect(url_for("projects.detail", project_id=project_id))
@@ -452,7 +513,7 @@ def update_project_stage(project_id):
     stage = request.form.get("stage") or payload.get("stage")
     if stage not in STAGES:
         return {"error": "Choose a valid project stage."}, 400
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id, write=True)
     if error_status:
@@ -461,7 +522,7 @@ def update_project_stage(project_id):
             return {"error": "Project not found."}, 404
         return {"error": "Forbidden"}, error_status
     cursor.execute(
-        "UPDATE projects SET stage = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        f"UPDATE projects SET stage = {_placeholder()}, updated_at = CURRENT_TIMESTAMP WHERE id = {_placeholder()}",
         (stage, project_id),
     )
     if cursor.rowcount == 0:
@@ -483,7 +544,7 @@ def update_task_stage(project_id, task_id):
     stage = request.form.get("stage") or payload.get("stage")
     if stage not in TASK_STAGES:
         return {"error": "Choose a valid task stage."}, 400
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id, write=True)
     if error_status:
@@ -492,14 +553,19 @@ def update_task_stage(project_id, task_id):
             return {"error": "Project not found."}, 404
         return {"error": "Forbidden"}, error_status
     cursor.execute(
-        """UPDATE project_tasks SET stage = ?, is_complete = ?, updated_at = CURRENT_TIMESTAMP
-           WHERE id = ? AND project_id = ?""",
+        f"""UPDATE project_tasks
+           SET stage = {_placeholder()}, is_complete = {_placeholder()},
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = {_placeholder()} AND project_id = {_placeholder()}""",
         (stage, int(stage == "completed"), task_id, project_id),
     )
     if cursor.rowcount == 0:
         conn.close()
         return {"error": "Task not found."}, 404
-    cursor.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+    cursor.execute(
+        f"UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = {_placeholder()}",
+        (project_id,),
+    )
     conn.commit()
     conn.close()
     if request.is_json:
@@ -509,7 +575,7 @@ def update_task_stage(project_id, task_id):
 
 @projects.route("/projects/<int:project_id>/items/<int:task_id>", methods=["GET", "POST"])
 def task_detail(project_id, task_id):
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id)
     if error_status:
@@ -538,22 +604,37 @@ def task_detail(project_id, task_id):
             flash("Enter a valid due date.", "danger")
         else:
             cursor.execute(
-                """UPDATE project_tasks
-                   SET title = ?, details = ?, stage = ?, due_date = ?, is_complete = ?,
+                f"""UPDATE project_tasks
+                   SET title = {_placeholder()}, details = {_placeholder()},
+                       stage = {_placeholder()}, due_date = {_placeholder()},
+                       is_complete = {_placeholder()},
                        updated_at = CURRENT_TIMESTAMP
-                   WHERE id = ? AND project_id = ?""",
-                (title, details, stage, due_date, int(stage == "completed"), task_id, project_id),
+                   WHERE id = {_placeholder()} AND project_id = {_placeholder()}""",
+                (
+                    title,
+                    details,
+                    stage,
+                    _date_value(due_date),
+                    int(stage == "completed"),
+                    task_id,
+                    project_id,
+                ),
             )
-            cursor.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+            cursor.execute(
+                f"UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = {_placeholder()}",
+                (project_id,),
+            )
             conn.commit()
             flash("Work item updated.", "success")
             conn.close()
             return redirect(url_for("projects.task_detail", project_id=project_id, task_id=task_id))
 
     cursor.execute(
-        """SELECT project_task_notes.*, users.full_name, users.username
+        f"""SELECT project_task_notes.*, users.full_name, users.username
            FROM project_task_notes JOIN users ON users.id = project_task_notes.created_by
-           WHERE task_id = ? ORDER BY created_at DESC, id DESC""",
+           WHERE task_id = {_placeholder()}
+           ORDER BY project_task_notes.created_at DESC,
+                    project_task_notes.id DESC""",
         (task_id,),
     )
     notes = cursor.fetchall()
@@ -571,7 +652,7 @@ def task_detail(project_id, task_id):
 
 @projects.route("/projects/<int:project_id>/items/<int:task_id>/delete", methods=["POST"])
 def delete_task(project_id, task_id):
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id, write=True)
     if error_status:
@@ -582,9 +663,18 @@ def delete_task(project_id, task_id):
     if _get_task(cursor, project_id, task_id) is None:
         conn.close()
         return render_template("projects/not_found.html"), 404
-    cursor.execute("DELETE FROM project_task_notes WHERE task_id = ?", (task_id,))
-    cursor.execute("DELETE FROM project_tasks WHERE id = ? AND project_id = ?", (task_id, project_id))
-    cursor.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+    cursor.execute(
+        f"DELETE FROM project_task_notes WHERE task_id = {_placeholder()}",
+        (task_id,),
+    )
+    cursor.execute(
+        f"DELETE FROM project_tasks WHERE id = {_placeholder()} AND project_id = {_placeholder()}",
+        (task_id, project_id),
+    )
+    cursor.execute(
+        f"UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = {_placeholder()}",
+        (project_id,),
+    )
     conn.commit()
     conn.close()
     flash("Work item deleted.", "success")
@@ -599,7 +689,7 @@ def add_task_note(project_id, task_id):
     if not note:
         flash("Write a note before adding it.", "danger")
         return redirect(url_for("projects.task_detail", project_id=project_id, task_id=task_id))
-    conn = get_connection()
+    conn = _get_connection()
     cursor = conn.cursor()
     project, error_status = _accessible_project(cursor, project_id, write=True)
     if error_status:
@@ -611,10 +701,14 @@ def add_task_note(project_id, task_id):
         conn.close()
         return render_template("projects/not_found.html"), 404
     cursor.execute(
-        "INSERT INTO project_task_notes (task_id, note, created_by) VALUES (?, ?, ?)",
+        f"""INSERT INTO project_task_notes (task_id, note, created_by)
+            VALUES ({_placeholder()}, {_placeholder()}, {_placeholder()})""",
         (task_id, note, session["user_id"]),
     )
-    cursor.execute("UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (project_id,))
+    cursor.execute(
+        f"UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = {_placeholder()}",
+        (project_id,),
+    )
     conn.commit()
     conn.close()
     flash("Note added.", "success")

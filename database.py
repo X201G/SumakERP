@@ -2,13 +2,260 @@
 # SUMAK ERP - DATABASE CONFIGURATION
 # ============================================
 
+"""Database connection configuration and SQLite schema initialization.
+
+SQLite remains the default. Setting DATABASE_URL to a PostgreSQL URL opts into
+the Psycopg 3 pool. Callers own each connection returned by get_connection()
+and must close it; PostgreSQL close rolls back any uncommitted transaction
+before returning the connection to the pool.
+"""
+
+import os
 import sqlite3
+import threading
+from urllib.parse import urlsplit
+
 from werkzeug.security import generate_password_hash
-DATABASE = "sumak_erp.db"
+
+DATABASE = os.environ.get("DATABASE", "sumak_erp.db")
+POSTGRES_POOL_MIN_SIZE = 1
+POSTGRES_POOL_MAX_SIZE = 10
+POSTGRES_POOL_TIMEOUT = 10
+
+_postgres_pool = None
+_postgres_pool_url = None
+_postgres_pool_lock = threading.RLock()
+
+
+class DatabaseConfigurationError(RuntimeError):
+    """Raised when the selected database cannot be configured safely."""
+
+
+class HybridRow:
+    """Row supporting SQLite-style integer and named indexing."""
+
+    __slots__ = ("_values", "_columns", "_mapping")
+
+    def __init__(self, columns, values):
+        self._columns = tuple(columns)
+        self._values = tuple(values)
+        self._mapping = {}
+        for column, value in zip(self._columns, self._values):
+            self._mapping.setdefault(column.casefold(), value)
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            return self._mapping[key.casefold()]
+        return self._values[key]
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self):
+        return len(self._values)
+
+    def keys(self):
+        return list(self._columns)
+
+
+def _postgres_row_factory(cursor):
+    if cursor.description is None:
+        return tuple
+
+    columns = tuple(column.name for column in cursor.description)
+    return lambda row_values: HybridRow(columns, row_values)
+
+
+def _postgres_url_from_environment():
+    database_url = os.environ.get("DATABASE_URL", "").strip()
+    if not database_url:
+        return None
+
+    try:
+        parsed = urlsplit(database_url)
+        port = parsed.port
+    except ValueError:
+        raise DatabaseConfigurationError(
+            "DATABASE_URL is not a valid PostgreSQL connection URL."
+        ) from None
+
+    if (
+        parsed.scheme not in ("postgres", "postgresql")
+        or not parsed.hostname
+        or not parsed.path.strip("/")
+        or (port is not None and not 1 <= port <= 65535)
+    ):
+        raise DatabaseConfigurationError(
+            "DATABASE_URL must be a valid PostgreSQL URL with a host and database name."
+        )
+    return database_url
+
+
+def _new_postgres_pool(database_url):
+    try:
+        from psycopg_pool import ConnectionPool
+    except ImportError:
+        raise DatabaseConfigurationError(
+            "PostgreSQL was selected with DATABASE_URL, but Psycopg 3 pooling "
+            "is unavailable. Install the project requirements."
+        ) from None
+
+    pool = None
+    try:
+        pool = ConnectionPool(
+            conninfo=database_url,
+            min_size=POSTGRES_POOL_MIN_SIZE,
+            max_size=POSTGRES_POOL_MAX_SIZE,
+            timeout=POSTGRES_POOL_TIMEOUT,
+            kwargs={"row_factory": _postgres_row_factory},
+            open=False,
+        )
+        pool.open(wait=True, timeout=POSTGRES_POOL_TIMEOUT)
+        return pool
+    except Exception:
+        if pool is not None:
+            try:
+                pool.close()
+            except Exception:
+                raise DatabaseConfigurationError(
+                    "Unable to initialize PostgreSQL and close its connection pool."
+                ) from None
+        raise DatabaseConfigurationError(
+            "Unable to connect to PostgreSQL using DATABASE_URL. "
+            "Check the configuration and database availability."
+        ) from None
+
+
+def _get_postgres_pool(database_url):
+    global _postgres_pool, _postgres_pool_url
+
+    with _postgres_pool_lock:
+        if _postgres_pool is not None and _postgres_pool_url == database_url:
+            return _postgres_pool
+
+        previous_pool = _postgres_pool
+        _postgres_pool = None
+        _postgres_pool_url = None
+        if previous_pool is not None:
+            try:
+                previous_pool.close()
+            except Exception:
+                raise DatabaseConfigurationError(
+                    "Unable to close the previous PostgreSQL connection pool."
+                ) from None
+
+        _postgres_pool = _new_postgres_pool(database_url)
+        _postgres_pool_url = database_url
+        return _postgres_pool
+
+
+class _PooledPostgresConnection:
+    """DB-API connection proxy that returns a clean connection to its pool."""
+
+    def __init__(self, pool, connection):
+        self._pool = pool
+        self._connection = connection
+        self._closed = False
+
+    def __getattr__(self, name):
+        if self._closed:
+            raise DatabaseConfigurationError("This PostgreSQL connection is already closed.")
+        return getattr(self._connection, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+
+        try:
+            self._connection.rollback()
+        except Exception:
+            try:
+                self._connection.close()
+                self._pool.putconn(self._connection)
+            except Exception:
+                raise DatabaseConfigurationError(
+                    "Unable to reset or discard a PostgreSQL connection."
+                ) from None
+            raise DatabaseConfigurationError(
+                "Unable to reset a PostgreSQL connection; the connection was discarded."
+            ) from None
+
+        try:
+            self._pool.putconn(self._connection)
+        except Exception:
+            try:
+                self._connection.close()
+                self._pool.putconn(self._connection)
+            except Exception:
+                raise DatabaseConfigurationError(
+                    "Unable to return or discard a PostgreSQL connection."
+                ) from None
+            raise DatabaseConfigurationError(
+                "Unable to return a PostgreSQL connection; it was discarded."
+            ) from None
+
+
 def get_connection():
+    """Return an owned SQLite or pooled PostgreSQL connection.
+
+    With DATABASE_URL unset, the existing SQLite connection behavior is
+    preserved. PostgreSQL callers must explicitly commit successful writes;
+    close() never commits and rolls back any remaining transaction.
+    """
+    database_url = _postgres_url_from_environment()
+    if database_url is not None:
+        pool = _get_postgres_pool(database_url)
+        try:
+            connection = pool.getconn(timeout=POSTGRES_POOL_TIMEOUT)
+        except Exception:
+            raise DatabaseConfigurationError(
+                "Unable to acquire a PostgreSQL connection from the pool."
+            ) from None
+        return _PooledPostgresConnection(pool, connection)
+
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def is_postgres_configured():
+    """Return whether DATABASE_URL selects PostgreSQL, validating it if present."""
+    return _postgres_url_from_environment() is not None
+
+
+def is_database_error(error):
+    """Identify backend errors without requiring Psycopg for SQLite-only use."""
+    if isinstance(error, (sqlite3.Error, DatabaseConfigurationError)):
+        return True
+
+    try:
+        import psycopg
+    except ImportError:
+        return False
+    return isinstance(error, psycopg.Error)
+
+
+def close_postgres_pool():
+    """Close and forget the process-wide PostgreSQL connection pool."""
+    global _postgres_pool, _postgres_pool_url
+
+    with _postgres_pool_lock:
+        if _postgres_pool is not None:
+            try:
+                _postgres_pool.close()
+            except Exception:
+                raise DatabaseConfigurationError(
+                    "Unable to close the PostgreSQL connection pool."
+                ) from None
+        _postgres_pool = None
+        _postgres_pool_url = None
 
 
 def _allow_system_scoped_usernames(conn):
@@ -63,6 +310,14 @@ def _allow_system_scoped_usernames(conn):
         )
 
 
+def _ensure_sqlite_column(conn, table, column, declaration):
+    existing = {
+        row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
+
+
 # ============================================
 # CREATE ALL TABLES
 # ============================================
@@ -107,7 +362,7 @@ def create_tables():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
+
     ## Category Master
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
@@ -395,7 +650,7 @@ def create_tables():
         )
     ''')
 
-    
+
 
     ## Sales Invoice Header
     cursor.execute('''
@@ -435,6 +690,8 @@ def create_tables():
         tax_amount REAL DEFAULT 0,
         amount REAL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        source_type TEXT,
+        source_item_id INTEGER,
         FOREIGN KEY (invoice_id) REFERENCES sales_invoices(id),
         FOREIGN KEY (product_id) REFERENCES products(id),
         FOREIGN KEY (unit_id) REFERENCES units(id),
@@ -517,6 +774,7 @@ def create_tables():
         bef_tax_amt REAL DEFAULT 0,
         tax_amount REAL DEFAULT 0,
         amount REAL DEFAULT 0,
+        billed_qty REAL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (order_id) REFERENCES sales_orders(id),
         FOREIGN KEY (product_id) REFERENCES products(id),
@@ -605,6 +863,7 @@ def create_tables():
         bef_tax_amt REAL DEFAULT 0,
         tax_amount REAL DEFAULT 0,
         amount REAL DEFAULT 0,
+        billed_qty REAL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (challan_id) REFERENCES sales_challans(id),
         FOREIGN KEY (product_id) REFERENCES products(id),
@@ -1507,10 +1766,31 @@ def create_tables():
         source_id INTEGER,
         source_no TEXT,
         movement_date DATE,
+        rate REAL DEFAULT 0,
+        amount REAL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (product_id) REFERENCES products(id)
         )
     ''')
+    for table, column, declaration in (
+        ("stock_movements", "rate", "REAL DEFAULT 0"),
+        ("stock_movements", "amount", "REAL DEFAULT 0"),
+        ("sales_invoice_items", "source_type", "TEXT"),
+        ("sales_invoice_items", "source_item_id", "INTEGER"),
+        ("sales_order_items", "billed_qty", "REAL DEFAULT 0"),
+        ("sales_challan_items", "billed_qty", "REAL DEFAULT 0"),
+    ):
+        _ensure_sqlite_column(conn, table, column, declaration)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS document_number_counters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_type TEXT NOT NULL,
+            scope TEXT NOT NULL,
+            last_value INTEGER NOT NULL,
+            UNIQUE (document_type, scope)
+        )
+    """)
 
     ## Delivery routes and in-app driver notifications
     cursor.execute('''
@@ -1570,7 +1850,7 @@ def create_tables():
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_delivery_notifications_user_read ON delivery_notifications(user_id, read_at)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_delivery_push_subscriptions_user ON delivery_push_subscriptions(user_id)')
 
-    conn.commit()   
+    conn.commit()
     conn.close()
     print("✅ All tables created successfully!")
 

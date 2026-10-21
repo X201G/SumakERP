@@ -2,14 +2,27 @@ from functools import wraps
 import sqlite3
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import get_connection
+from database import get_connection as _get_connection
+from modules.document_database import (
+    install_document_connection_cleanup,
+    managed_document_connection,
+)
 
 auth = Blueprint("auth", __name__)
+get_connection = managed_document_connection(_get_connection)
+install_document_connection_cleanup(auth)
 
 ROLES = ["admin", "sales", "purchase", "store", "accounts"]
 PROJECT_ROLES = ["admin", "user", "external"]
 HIRING_ROLES = ["admin", "recruiter", "hiring_manager", "viewer"]
 DELIVERY_ROLES = ["admin", "dispatcher", "driver"]
+
+
+def _is_unique_violation(error):
+    if isinstance(error, sqlite3.IntegrityError):
+        return "UNIQUE constraint failed" in str(error)
+    return getattr(error, "sqlstate", None) == "23505"
+
 
 # ============================================
 # ACCESS CONTROL HELPERS
@@ -194,7 +207,10 @@ def setup_projects():
                 (username, generate_password_hash(password), full_name, "admin", "projects")
             )
             conn.commit()
-        except Exception:
+        except Exception as error:
+            if not _is_unique_violation(error):
+                raise
+            conn.rollback()
             conn.close()
             flash("That username is already taken.", "danger")
             return render_template("auth/project_setup.html")
@@ -233,7 +249,10 @@ def setup_hiring():
                 (username, generate_password_hash(password), full_name, "admin", "hiring")
             )
             conn.commit()
-        except Exception:
+        except Exception as error:
+            if not _is_unique_violation(error):
+                raise
+            conn.rollback()
             conn.close()
             flash("That username is already taken.", "danger")
             return render_template("auth/hiring_setup.html")
@@ -273,7 +292,10 @@ def setup_delivery():
                 (username, generate_password_hash(password), full_name, "admin", "delivery")
             )
             conn.commit()
-        except Exception:
+        except Exception as error:
+            if not _is_unique_violation(error):
+                raise
+            conn.rollback()
             conn.close()
             flash("That username is already taken.", "danger")
             return render_template("auth/delivery_setup.html")
@@ -308,7 +330,10 @@ def add_user():
             )
             conn.commit()
             flash("User added successfully!", "success")
-        except Exception:
+        except Exception as error:
+            if not _is_unique_violation(error):
+                raise
+            conn.rollback()
             flash("That username is already taken.", "danger")
         conn.close()
         return redirect(url_for("auth.users_list"))
@@ -363,7 +388,9 @@ def edit_user(user_id):
                     "UPDATE users SET full_name=?, role=?, is_active=? WHERE id=? AND system=?",
                     (full_name, role, is_active, user_id, system)
                 )
-        except sqlite3.IntegrityError:
+        except Exception as error:
+            if not _is_unique_violation(error):
+                raise
             conn.rollback()
             conn.close()
             flash("That username is already taken in this system.", "danger")

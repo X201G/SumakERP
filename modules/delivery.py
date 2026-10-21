@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
 from pywebpush import WebPushException, webpush
 
+import database
 from database import get_connection
 from modules.auth import require_system
 
@@ -19,11 +20,36 @@ def _can_dispatch():
     return session.get("role") in ("admin", "dispatcher")
 
 
+def _placeholder():
+    return "%s" if database.is_postgres_configured() else "?"
+
+
+def _route_date_value(value):
+    parsed = date.fromisoformat(value)
+    return parsed if database.is_postgres_configured() else parsed.isoformat()
+
+
+def _database_failure(error, conn):
+    if not database.is_database_error(error):
+        return None
+
+    if conn is not None:
+        try:
+            conn.rollback()
+        except Exception as rollback_error:
+            logger.error(
+                "Delivery database rollback failed (%s).",
+                type(rollback_error).__name__,
+            )
+    logger.warning("Delivery database operation failed (%s).", type(error).__name__)
+    return jsonify(error="Delivery service is temporarily unavailable."), 503
+
+
 def _active_drivers(cursor):
     cursor.execute(
         """SELECT id, username, full_name FROM users
            WHERE system = 'delivery' AND role = 'driver' AND is_active = 1
-           ORDER BY full_name COLLATE NOCASE, username"""
+           ORDER BY LOWER(full_name), LOWER(username)"""
     )
     return cursor.fetchall()
 
@@ -72,13 +98,22 @@ def _valid_push_endpoint(value):
 
 def _send_driver_push(user_id, route_id, title, route_date):
     config = _vapid_config()
-    conn = get_connection()
-    subscriptions = conn.execute(
-        """SELECT id, endpoint, p256dh, auth FROM delivery_push_subscriptions
-           WHERE user_id = ?""",
-        (user_id,),
-    ).fetchall()
-    conn.close()
+    conn = None
+    try:
+        conn = get_connection()
+        subscriptions = conn.execute(
+            f"""SELECT id, endpoint, p256dh, auth FROM delivery_push_subscriptions
+                WHERE user_id = {_placeholder()}""",
+            (user_id,),
+        ).fetchall()
+    except Exception as error:
+        if database.is_database_error(error):
+            logger.warning("Delivery push lookup failed (%s).", type(error).__name__)
+            return 0, "The route is assigned, but push notification status is unavailable."
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
 
     if not subscriptions:
         return 0, "This driver has not enabled browser push notifications; the route is still in their portal."
@@ -109,7 +144,7 @@ def _send_driver_push(user_id, route_id, title, route_date):
                 timeout=10,
             )
             delivered += 1
-        except WebPushException as error:
+        except (WebPushException, OSError, ValueError) as error:
             failed += 1
             response = getattr(error, "response", None)
             status_code = getattr(response, "status_code", None)
@@ -122,13 +157,27 @@ def _send_driver_push(user_id, route_id, title, route_date):
             )
 
     if stale_subscription_ids:
-        conn = get_connection()
-        conn.executemany(
-            "DELETE FROM delivery_push_subscriptions WHERE id = ?",
-            [(subscription_id,) for subscription_id in stale_subscription_ids],
-        )
-        conn.commit()
-        conn.close()
+        conn = None
+        try:
+            conn = get_connection()
+            conn.executemany(
+                f"DELETE FROM delivery_push_subscriptions WHERE id = {_placeholder()}",
+                [(subscription_id,) for subscription_id in stale_subscription_ids],
+            )
+            conn.commit()
+        except Exception:
+            if conn is not None:
+                try:
+                    conn.rollback()
+                except Exception as rollback_error:
+                    logger.error(
+                        "Delivery push cleanup rollback failed (%s).",
+                        type(rollback_error).__name__,
+                    )
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
 
     if delivered and failed:
         return delivered, f"Push sent to {delivered} device(s); {failed} device(s) could not be reached."
@@ -143,12 +192,17 @@ def inject_delivery_notifications():
     if session.get("system") != "delivery" or not user_id:
         return {"delivery_unread_count": 0}
 
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT COUNT(*) AS total FROM delivery_notifications WHERE user_id = ? AND read_at IS NULL",
-        (user_id,),
-    ).fetchone()
-    conn.close()
+    conn = None
+    try:
+        conn = get_connection()
+        row = conn.execute(
+            f"""SELECT COUNT(*) AS total FROM delivery_notifications
+                WHERE user_id = {_placeholder()} AND read_at IS NULL""",
+            (user_id,),
+        ).fetchone()
+    finally:
+        if conn is not None:
+            conn.close()
     return {"delivery_unread_count": row["total"]}
 
 
@@ -156,44 +210,55 @@ def inject_delivery_notifications():
 def index():
     user_id = session["user_id"]
     if _can_dispatch():
-        routes = get_connection()
-        route_rows = routes.execute(
-            """SELECT delivery_routes.*, users.full_name AS driver_name,
-                      COUNT(delivery_route_stops.id) AS stop_count
-               FROM delivery_routes
-               JOIN users ON users.id = delivery_routes.driver_id
-               LEFT JOIN delivery_route_stops ON delivery_route_stops.route_id = delivery_routes.id
-               GROUP BY delivery_routes.id
-               ORDER BY delivery_routes.route_date DESC, delivery_routes.id DESC"""
-        ).fetchall()
-        routes.close()
+        routes = None
+        try:
+            routes = get_connection()
+            route_rows = routes.execute(
+                """SELECT delivery_routes.*, users.full_name AS driver_name,
+                          (SELECT COUNT(*)
+                           FROM delivery_route_stops
+                           WHERE delivery_route_stops.route_id = delivery_routes.id)
+                              AS stop_count
+                   FROM delivery_routes
+                   JOIN users ON users.id = delivery_routes.driver_id
+                   ORDER BY delivery_routes.route_date DESC, delivery_routes.id DESC"""
+            ).fetchall()
+        finally:
+            if routes is not None:
+                routes.close()
         return render_template("delivery/index.html", routes=route_rows, is_dispatcher=True, notifications=[])
     if session.get("role") != "driver":
         abort(403)
 
-    conn = get_connection()
-    route_rows = conn.execute(
-        """SELECT delivery_routes.*, users.full_name AS driver_name,
-                  COUNT(delivery_route_stops.id) AS stop_count
-           FROM delivery_routes
-           JOIN users ON users.id = delivery_routes.driver_id
-           LEFT JOIN delivery_route_stops ON delivery_route_stops.route_id = delivery_routes.id
-           WHERE delivery_routes.driver_id = ?
-           GROUP BY delivery_routes.id
-           ORDER BY delivery_routes.route_date DESC, delivery_routes.id DESC""",
-        (user_id,),
-    ).fetchall()
-    notifications = conn.execute(
-        """SELECT delivery_notifications.id, delivery_notifications.message,
-                  delivery_notifications.created_at, delivery_routes.id AS route_id,
-                  delivery_routes.route_date
-           FROM delivery_notifications
-           JOIN delivery_routes ON delivery_routes.id = delivery_notifications.route_id
-           WHERE delivery_notifications.user_id = ? AND delivery_notifications.read_at IS NULL
-           ORDER BY delivery_notifications.created_at DESC""",
-        (user_id,),
-    ).fetchall()
-    conn.close()
+    conn = None
+    try:
+        conn = get_connection()
+        route_rows = conn.execute(
+            f"""SELECT delivery_routes.*, users.full_name AS driver_name,
+                      (SELECT COUNT(*)
+                       FROM delivery_route_stops
+                       WHERE delivery_route_stops.route_id = delivery_routes.id)
+                          AS stop_count
+               FROM delivery_routes
+               JOIN users ON users.id = delivery_routes.driver_id
+               WHERE delivery_routes.driver_id = {_placeholder()}
+               ORDER BY delivery_routes.route_date DESC, delivery_routes.id DESC""",
+            (user_id,),
+        ).fetchall()
+        notifications = conn.execute(
+            f"""SELECT delivery_notifications.id, delivery_notifications.message,
+                      delivery_notifications.created_at, delivery_routes.id AS route_id,
+                      delivery_routes.route_date
+               FROM delivery_notifications
+               JOIN delivery_routes ON delivery_routes.id = delivery_notifications.route_id
+               WHERE delivery_notifications.user_id = {_placeholder()}
+                 AND delivery_notifications.read_at IS NULL
+               ORDER BY delivery_notifications.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+    finally:
+        if conn is not None:
+            conn.close()
     return render_template(
         "delivery/index.html",
         routes=route_rows,
@@ -227,37 +292,48 @@ def push_subscriptions():
     if not _valid_push_endpoint(endpoint):
         return jsonify(error="The push endpoint is invalid."), 400
 
-    conn = get_connection()
-    if request.method == "DELETE":
-        conn.execute(
-            "DELETE FROM delivery_push_subscriptions WHERE user_id = ? AND endpoint = ?",
-            (session["user_id"], endpoint),
-        )
-        conn.commit()
-        conn.close()
-        return jsonify(success=True)
-
     keys = payload.get("keys")
-    if not isinstance(keys, dict):
-        conn.close()
-        return jsonify(error="The push subscription keys are invalid."), 400
-    p256dh = keys.get("p256dh")
-    auth_key = keys.get("auth")
-    if not all(isinstance(value, str) and 1 <= len(value) <= 256 for value in (p256dh, auth_key)):
-        conn.close()
-        return jsonify(error="The push subscription keys are invalid."), 400
-    conn.execute(
-        """INSERT INTO delivery_push_subscriptions (user_id, endpoint, p256dh, auth)
-           VALUES (?, ?, ?, ?)
-           ON CONFLICT(endpoint) DO UPDATE SET
-               user_id = excluded.user_id,
-               p256dh = excluded.p256dh,
-               auth = excluded.auth,
-               updated_at = CURRENT_TIMESTAMP""",
-        (session["user_id"], endpoint, p256dh, auth_key),
-    )
-    conn.commit()
-    conn.close()
+    if request.method == "POST":
+        if not isinstance(keys, dict):
+            return jsonify(error="The push subscription keys are invalid."), 400
+        p256dh = keys.get("p256dh")
+        auth_key = keys.get("auth")
+        if not all(
+            isinstance(value, str) and 1 <= len(value) <= 256
+            for value in (p256dh, auth_key)
+        ):
+            return jsonify(error="The push subscription keys are invalid."), 400
+
+    conn = None
+    try:
+        conn = get_connection()
+        if request.method == "DELETE":
+            conn.execute(
+                f"""DELETE FROM delivery_push_subscriptions
+                    WHERE user_id = {_placeholder()} AND endpoint = {_placeholder()}""",
+                (session["user_id"], endpoint),
+            )
+        else:
+            conn.execute(
+                f"""INSERT INTO delivery_push_subscriptions
+                       (user_id, endpoint, p256dh, auth)
+                   VALUES ({_placeholder()}, {_placeholder()}, {_placeholder()}, {_placeholder()})
+                   ON CONFLICT(endpoint) DO UPDATE SET
+                       user_id = excluded.user_id,
+                       p256dh = excluded.p256dh,
+                       auth = excluded.auth,
+                       updated_at = CURRENT_TIMESTAMP""",
+                (session["user_id"], endpoint, p256dh, auth_key),
+            )
+        conn.commit()
+    except Exception as error:
+        response = _database_failure(error, conn)
+        if response is not None:
+            return response
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
     return jsonify(success=True)
 
 
@@ -266,9 +342,20 @@ def create_route():
     if not _can_dispatch():
         abort(403)
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    drivers = _active_drivers(cursor)
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        drivers = _active_drivers(cursor)
+    except Exception as error:
+        response = _database_failure(error, conn)
+        if response is not None:
+            return response
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
+
     route_date = date.today().isoformat()
     selected_driver_id = None
     form_stops = [{"customer_name": "", "customer_phone": "", "address": "", "maps_url": ""}]
@@ -290,8 +377,9 @@ def create_route():
                 for index in range(stop_count)
             ]
 
+        route_date_value = None
         try:
-            date.fromisoformat(route_date)
+            route_date_value = _route_date_value(route_date)
             valid_date = True
         except ValueError:
             valid_date = False
@@ -320,42 +408,77 @@ def create_route():
             if has_invalid_stop:
                 flash("Each stop needs a customer name and an address or valid map link.", "danger")
             else:
-                cursor.execute(
-                    """INSERT INTO delivery_routes
-                       (title, vehicle, route_date, driver_id, status, created_by)
-                       VALUES (?, ?, ?, ?, 'assigned', ?)""",
-                    (title, vehicle, route_date, driver_id, session["user_id"]),
-                )
-                route_id = cursor.lastrowid
-                cursor.executemany(
-                    """INSERT INTO delivery_route_stops
-                       (route_id, stop_order, customer_name, customer_phone, address, maps_url)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    [
-                        (route_id, index + 1, *stop)
-                        for index, stop in enumerate(stops)
-                    ],
-                )
-                cursor.execute(
-                    """INSERT INTO delivery_notifications (user_id, route_id, message)
-                       VALUES (?, ?, ?)""",
-                    (driver_id, route_id, f"New route plan assigned: {title}"),
-                )
-                conn.commit()
-                conn.close()
-                push_count, push_message = _send_driver_push(
-                    driver_id,
-                    route_id,
-                    title,
-                    route_date,
-                )
+                conn = None
+                try:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    route_statement = f"""INSERT INTO delivery_routes
+                        (title, vehicle, route_date, driver_id, status, created_by)
+                        VALUES ({_placeholder()}, {_placeholder()}, {_placeholder()},
+                                {_placeholder()}, 'assigned', {_placeholder()})"""
+                    if database.is_postgres_configured():
+                        cursor.execute(
+                            route_statement + " RETURNING id",
+                            (title, vehicle, route_date_value, driver_id, session["user_id"]),
+                        )
+                        route_id = cursor.fetchone()[0]
+                    else:
+                        cursor.execute(
+                            route_statement,
+                            (title, vehicle, route_date_value, driver_id, session["user_id"]),
+                        )
+                        route_id = cursor.lastrowid
+
+                    stop_values = ", ".join([_placeholder()] * 6)
+                    cursor.executemany(
+                        f"""INSERT INTO delivery_route_stops
+                            (route_id, stop_order, customer_name, customer_phone, address, maps_url)
+                            VALUES ({stop_values})""",
+                        [
+                            (route_id, index + 1, *stop)
+                            for index, stop in enumerate(stops)
+                        ],
+                    )
+                    cursor.execute(
+                        f"""INSERT INTO delivery_notifications
+                            (user_id, route_id, message)
+                            VALUES ({_placeholder()}, {_placeholder()}, {_placeholder()})""",
+                        (driver_id, route_id, f"New route plan assigned: {title}"),
+                    )
+                    conn.commit()
+                except Exception as error:
+                    response = _database_failure(error, conn)
+                    if response is not None:
+                        return response
+                    raise
+                finally:
+                    if conn is not None:
+                        conn.close()
+
+                try:
+                    push_count, push_message = _send_driver_push(
+                        driver_id,
+                        route_id,
+                        title,
+                        route_date,
+                    )
+                except Exception as error:
+                    if not database.is_database_error(error):
+                        raise
+                    logger.warning(
+                        "Delivery post-commit push processing failed (%s).",
+                        type(error).__name__,
+                    )
+                    push_count = 0
+                    push_message = (
+                        "The route is assigned, but push notification status is unavailable."
+                    )
                 flash(
                     f"Route plan assigned. {push_message}",
                     "success" if push_message.startswith("Push notification sent") else "info",
                 )
                 return redirect(url_for("delivery.route_detail", route_id=route_id))
 
-    conn.close()
     return render_template(
         "delivery/route_form.html",
         drivers=drivers,
@@ -369,36 +492,44 @@ def create_route():
 
 @delivery.route("/delivery/routes/<int:route_id>")
 def route_detail(route_id):
-    conn = get_connection()
-    route = conn.execute(
-        """SELECT delivery_routes.*, users.full_name AS driver_name,
-                  users.username AS driver_username
-           FROM delivery_routes
-           JOIN users ON users.id = delivery_routes.driver_id
-           WHERE delivery_routes.id = ?""",
-        (route_id,),
-    ).fetchone()
-    if route is None:
-        conn.close()
-        abort(404)
-    if not _can_dispatch() and (
-        session.get("role") != "driver" or route["driver_id"] != session["user_id"]
-    ):
-        conn.close()
-        abort(404)
+    conn = None
+    try:
+        conn = get_connection()
+        route = conn.execute(
+            f"""SELECT delivery_routes.*, users.full_name AS driver_name,
+                      users.username AS driver_username
+               FROM delivery_routes
+               JOIN users ON users.id = delivery_routes.driver_id
+               WHERE delivery_routes.id = {_placeholder()}""",
+            (route_id,),
+        ).fetchone()
+        if route is None:
+            abort(404)
+        if not _can_dispatch() and (
+            session.get("role") != "driver" or route["driver_id"] != session["user_id"]
+        ):
+            abort(404)
 
-    stops = conn.execute(
-        "SELECT * FROM delivery_route_stops WHERE route_id = ? ORDER BY stop_order",
-        (route_id,),
-    ).fetchall()
-    if session.get("role") == "driver":
-        conn.execute(
-            """UPDATE delivery_notifications SET read_at = CURRENT_TIMESTAMP
-               WHERE route_id = ? AND user_id = ? AND read_at IS NULL""",
-            (route_id, session["user_id"]),
-        )
-        conn.commit()
-    conn.close()
+        stops = conn.execute(
+            f"SELECT * FROM delivery_route_stops WHERE route_id = {_placeholder()} ORDER BY stop_order",
+            (route_id,),
+        ).fetchall()
+        if session.get("role") == "driver":
+            conn.execute(
+                f"""UPDATE delivery_notifications SET read_at = CURRENT_TIMESTAMP
+                    WHERE route_id = {_placeholder()}
+                      AND user_id = {_placeholder()} AND read_at IS NULL""",
+                (route_id, session["user_id"]),
+            )
+            conn.commit()
+    except Exception as error:
+        response = _database_failure(error, conn)
+        if response is not None:
+            return response
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
     return render_template("delivery/route_detail.html", route=route, stops=stops)
 
 
@@ -406,16 +537,26 @@ def route_detail(route_id):
 def complete_route(route_id):
     if session.get("role") != "driver":
         abort(403)
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        """UPDATE delivery_routes SET status = 'completed', updated_at = CURRENT_TIMESTAMP
-           WHERE id = ? AND driver_id = ? AND status = 'assigned'""",
-        (route_id, session["user_id"]),
-    )
-    updated = cursor.rowcount
-    conn.commit()
-    conn.close()
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""UPDATE delivery_routes SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+                WHERE id = {_placeholder()} AND driver_id = {_placeholder()}
+                  AND status = 'assigned'""",
+            (route_id, session["user_id"]),
+        )
+        updated = cursor.rowcount
+        conn.commit()
+    except Exception as error:
+        response = _database_failure(error, conn)
+        if response is not None:
+            return response
+        raise
+    finally:
+        if conn is not None:
+            conn.close()
     if not updated:
         abort(404)
     flash("Route marked as completed.", "success")

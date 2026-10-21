@@ -1,9 +1,16 @@
 from flask import Blueprint
 from flask import render_template, request, redirect, url_for, flash
-from database import get_connection
+from database import get_connection as _get_connection
+from modules.document_database import (
+    install_document_connection_cleanup,
+    managed_document_connection,
+    next_document_number,
+)
 from modules.stock import add_stock_movement
 
 sales = Blueprint("sales", __name__)
+get_connection = managed_document_connection(_get_connection)
+install_document_connection_cleanup(sales)
 from modules.auth import require_system
 sales.before_request(require_system("distribution"))
 
@@ -70,7 +77,10 @@ def add_sales_invoice():
         cr_days = request.form.get("cr_days") or 0
         due_date = request.form.get("due_date")
         remarks = request.form.get("remarks")
-        invoice_no = "SI-" + invoice_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM sales_invoices").fetchone()[0]) + 1).zfill(4)
+        invoice_prefix = "SI-" + invoice_date.replace("-", "") + "-"
+        invoice_no = next_document_number(
+            cursor, "sales_invoice", "global", invoice_prefix, "SI-"
+        )
         cursor.execute("""
             INSERT INTO sales_invoices (invoice_no, invoice_date, customer_id, transporter_id, po_no, po_date, cr_days, due_date, remarks)
             VALUES (?,?,?,?,?,?,?,?,?)
@@ -200,7 +210,10 @@ def add_sales_quotation():
         valid_till = request.form.get("valid_till")
         kind_attn = request.form.get("kind_attn")
         remarks = request.form.get("remarks")
-        quotation_no = "QT-" + quotation_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM sales_quotations").fetchone()[0]) + 1).zfill(4)
+        quotation_prefix = "QT-" + quotation_date.replace("-", "") + "-"
+        quotation_no = next_document_number(
+            cursor, "sales_quotation", "global", quotation_prefix, "QT-"
+        )
         cursor.execute("""
             INSERT INTO sales_quotations (quotation_no, quotation_date, customer_id, valid_till, kind_attn, remarks)
             VALUES (?,?,?,?,?,?)
@@ -331,7 +344,10 @@ def add_sales_order():
         po_date = request.form.get("po_date")
         kind_attn = request.form.get("kind_attn")
         remarks = request.form.get("remarks")
-        order_no = "SO-" + order_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM sales_orders").fetchone()[0]) + 1).zfill(4)
+        order_prefix = "SO-" + order_date.replace("-", "") + "-"
+        order_no = next_document_number(
+            cursor, "sales_order", "global", order_prefix, "SO-"
+        )
         cursor.execute("""
             INSERT INTO sales_orders (order_no, order_date, customer_id, po_no, po_date, kind_attn, remarks)
             VALUES (?,?,?,?,?,?,?)
@@ -461,7 +477,10 @@ def add_proforma_invoice():
         po_date = request.form.get("po_date")
         kind_attn = request.form.get("kind_attn")
         remarks = request.form.get("remarks")
-        proforma_no = "PF-" + proforma_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM proforma_invoices").fetchone()[0]) + 1).zfill(4)
+        proforma_prefix = "PF-" + proforma_date.replace("-", "") + "-"
+        proforma_no = next_document_number(
+            cursor, "proforma_invoice", "global", proforma_prefix, "PF-"
+        )
         cursor.execute("""
             INSERT INTO proforma_invoices (proforma_no, proforma_date, customer_id, transporter_id, po_no, po_date, kind_attn, remarks)
             VALUES (?,?,?,?,?,?,?,?)
@@ -597,7 +616,10 @@ def add_sales_challan():
         po_date = request.form.get("po_date")
         kind_attn = request.form.get("kind_attn")
         remarks = request.form.get("remarks")
-        challan_no = "CH-" + challan_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM sales_challans").fetchone()[0]) + 1).zfill(4)
+        challan_prefix = "CH-" + challan_date.replace("-", "") + "-"
+        challan_no = next_document_number(
+            cursor, "sales_challan", "global", challan_prefix, "CH-"
+        )
         cursor.execute("""
             INSERT INTO sales_challans (challan_no, challan_date, customer_id, transporter_id, po_no, po_date, kind_attn, remarks)
             VALUES (?,?,?,?,?,?,?,?)
@@ -729,7 +751,10 @@ def add_sales_return():
         return_date = request.form.get("return_date")
         reason = request.form.get("reason")
         remarks = request.form.get("remarks")
-        return_no = "SR-" + return_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM sales_returns").fetchone()[0]) + 1).zfill(4)
+        return_prefix = "SR-" + return_date.replace("-", "") + "-"
+        return_no = next_document_number(
+            cursor, "sales_return", "global", return_prefix, "SR-"
+        )
         cursor.execute("""
             INSERT INTO sales_returns (return_no, return_date, customer_id, transporter_id, invoice_id, reason, remarks)
             VALUES (?,?,?,?,?,?,?)

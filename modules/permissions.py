@@ -1,5 +1,9 @@
 from flask import g, session, request, flash, redirect, url_for
-from database import get_connection
+from database import get_connection as _get_connection
+from modules.document_database import managed_document_connection
+
+
+get_connection = managed_document_connection(_get_connection)
 
 # ============================================
 # SECTION REGISTRY

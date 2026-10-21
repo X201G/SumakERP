@@ -99,6 +99,33 @@ class HiringSystemTests(unittest.TestCase):
             403,
         )
 
+    def test_candidate_search_and_position_order_are_case_insensitive(self):
+        conn = database.get_connection()
+        conn.executemany(
+            """INSERT INTO hiring_candidates (full_name, position, status)
+               VALUES (?, ?, ?)""",
+            [
+                ("Lowercase Candidate", "alpha", "new"),
+                ("Uppercase Candidate", "Beta", "new"),
+                ("Mixed Candidate", "ALPHA", "new"),
+            ],
+        )
+        conn.commit()
+        conn.close()
+
+        self.login_as("hiring_admin", "hiring")
+        response = self.client.get("/hiring?q=lowercase")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Lowercase Candidate", response.data)
+
+        response = self.client.get("/hiring")
+        positions = [
+            response.data.index(b'value="ALPHA"'),
+            response.data.index(b'value="alpha"'),
+            response.data.index(b'value="Beta"'),
+        ]
+        self.assertEqual(positions, sorted(positions))
+
     def test_hiring_administrator_setup_is_one_time(self):
         conn = database.get_connection()
         conn.execute("DELETE FROM users WHERE system = 'hiring'")

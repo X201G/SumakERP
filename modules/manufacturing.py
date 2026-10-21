@@ -1,13 +1,20 @@
+import sqlite3
 from flask import Blueprint
 from flask import render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash
-from database import get_connection
+from database import get_connection as _get_connection
 from modules.auth import require_system
 from modules.permissions import enforce_permissions, SECTIONS, SECTION_LABELS, SECTION_GROUPS
+from modules.document_database import (
+    install_document_connection_cleanup,
+    managed_document_connection,
+)
 
+get_connection = managed_document_connection(_get_connection)
 manufacturing = Blueprint("manufacturing", __name__)
 manufacturing.before_request(require_system("manufacturing"))
 manufacturing.before_request(enforce_permissions)
+install_document_connection_cleanup(manufacturing)
 
 TOOL_TYPES = ["Drill", "Endmill", "Reamer", "Holemill", "Tap", "Special Tool"]
 TOOL_TYPE_CODE_PREFIX = {
@@ -291,6 +298,7 @@ def add_tool():
             cursor.execute("SELECT name FROM mfg_brands WHERE id = ?", (brand_id,))
             brand_row = cursor.fetchone()
             brand_name = brand_row["name"] if brand_row else None
+        cursor.execute("BEGIN IMMEDIATE")
         item_code = generate_item_code(tool_type, brand_name, cursor)
 
         cursor.execute("""
@@ -791,7 +799,13 @@ def manufacturing_add_user():
             )
             conn.commit()
             flash("User added successfully!", "success")
-        except Exception:
+        except Exception as error:
+            is_unique_violation = (
+                isinstance(error, sqlite3.IntegrityError)
+                and "UNIQUE constraint failed" in str(error)
+            ) or getattr(error, "sqlstate", None) == "23505"
+            if not is_unique_violation:
+                raise
             flash("That username is already taken.", "danger")
         conn.close()
         return redirect(url_for("manufacturing.manufacturing_users_list"))
@@ -1048,6 +1062,7 @@ def add_batch():
             conn.close()
             return redirect(url_for("manufacturing.add_batch"))
 
+        cursor.execute("BEGIN IMMEDIATE")
         suggested_rod_id = suggest_best_rod(tool_id, quantity, grade, cursor)
         if suggested_rod_id and str(suggested_rod_id) != str(rod_id) and not override_reason:
             flash("You've picked a different rod than the suggested best fit - please give a reason.", "danger")
@@ -1068,7 +1083,6 @@ def add_batch():
             conn.close()
             return redirect(url_for("manufacturing.add_batch"))
 
-        cursor.execute("BEGIN IMMEDIATE")
         batch_no = generate_batch_no(batch_date, cursor)
         cursor.execute("""
             INSERT INTO mfg_job_batches (batch_no, batch_date, tool_id, rod_id, customer_id, quantity, length_needed_mm, rod_override_reason, remarks)
@@ -1274,11 +1288,12 @@ def _batch_is_untouched(cursor, batch_id):
 def edit_batch(batch_id):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM mfg_job_batches WHERE id = ?", (batch_id,))
-    batch = cursor.fetchone()
-    untouched = _batch_is_untouched(cursor, batch_id)
 
     if request.method == "POST":
+        cursor.execute("BEGIN IMMEDIATE")
+        cursor.execute("SELECT * FROM mfg_job_batches WHERE id = ?", (batch_id,))
+        batch = cursor.fetchone()
+        untouched = _batch_is_untouched(cursor, batch_id)
         customer_id = request.form.get("customer_id") or None
         remarks = request.form.get("remarks")
 
@@ -1306,7 +1321,6 @@ def edit_batch(batch_id):
                 conn.close()
                 return redirect(url_for("manufacturing.edit_batch", batch_id=batch_id))
 
-            cursor.execute("BEGIN IMMEDIATE")
             cursor.execute("UPDATE mfg_rods SET remaining_length_mm = remaining_length_mm + ? WHERE id = ?", (batch["length_needed_mm"], batch["rod_id"]))
             cursor.execute("DELETE FROM mfg_stock_movements WHERE source_type='batch_reserve' AND source_id=?", (batch_id,))
             cursor.execute("UPDATE mfg_rods SET remaining_length_mm = remaining_length_mm - ? WHERE id = ?", (length_needed, rod_id))
@@ -1329,6 +1343,9 @@ def edit_batch(batch_id):
         flash("Batch updated successfully!", "success")
         return redirect(url_for("manufacturing.batch_detail", batch_id=batch_id))
 
+    cursor.execute("SELECT * FROM mfg_job_batches WHERE id = ?", (batch_id,))
+    batch = cursor.fetchone()
+    untouched = _batch_is_untouched(cursor, batch_id)
     cursor.execute("SELECT id, name FROM customers ORDER BY name")
     customers = cursor.fetchall()
     tools, rods = [], []
@@ -1381,6 +1398,7 @@ def send_operation(batch_id):
     conn = get_connection()
     cursor = conn.cursor()
 
+    cursor.execute("BEGIN IMMEDIATE")
     cursor.execute("SELECT quantity FROM mfg_job_batches WHERE id = ?", (batch_id,))
     batch_row = cursor.fetchone()
     if batch_row and quantity_sent > batch_row["quantity"]:
@@ -1394,7 +1412,6 @@ def send_operation(batch_id):
         flash("This batch already has a shipment in progress - receive it before sending another.", "danger")
         return redirect(url_for("manufacturing.batch_detail", batch_id=batch_id))
 
-    cursor.execute("BEGIN IMMEDIATE")
     cursor.execute("""
         INSERT INTO mfg_job_stages (batch_id, stages, vendor_id, dispatch_date, quantity_sent, remarks)
         VALUES (?,?,?,?,?,?)
@@ -2134,6 +2151,7 @@ def add_invoice(batch_id):
             from datetime import date, timedelta
             due_date = (date.fromisoformat(invoice_date) + timedelta(days=cr_days)).isoformat()
 
+        cursor.execute("BEGIN IMMEDIATE")
         cursor.execute("""
             SELECT COALESCE(SUM(mfg_challan_items.quantity), 0) as total
             FROM mfg_challan_items
@@ -2153,7 +2171,6 @@ def add_invoice(batch_id):
         tax_amount = round(bef_tax_amt * tax_rate / 100, 2)
         amount = round(bef_tax_amt + tax_amount, 2)
 
-        cursor.execute("BEGIN IMMEDIATE")
         invoice_no = generate_invoice_no(invoice_date, cursor)
         cursor.execute("""
             INSERT INTO mfg_invoices (invoice_no, invoice_date, customer_id, cr_days, due_date, remarks, total_amount)

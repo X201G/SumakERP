@@ -1,10 +1,16 @@
 from flask import Blueprint
 from flask import render_template, request, redirect, url_for, flash
-from database import get_connection
+from database import get_connection as _get_connection
 from modules.auth import require_system
+from modules.document_database import (
+    install_document_connection_cleanup,
+    managed_document_connection,
+)
 from datetime import date
 
 accounting = Blueprint("accounting", __name__)
+get_connection = managed_document_connection(_get_connection)
+install_document_connection_cleanup(accounting)
 accounting.before_request(require_system("distribution"))
 
 def invoice_status(total_amount, paid):
@@ -18,6 +24,11 @@ def invoice_status(total_amount, paid):
     else:
         status = "unpaid"
     return due, status
+
+
+def _iso_date(value):
+    return value.isoformat() if isinstance(value, date) else value
+
 
 # ============================================
 # SALES PAYMENTS (money received from customers)
@@ -165,8 +176,8 @@ def api_customer_invoices(customer_id):
         result.append({
             "id": r["id"],
             "invoice_no": r["invoice_no"],
-            "invoice_date": r["invoice_date"],
-            "due_date": r["due_date"],
+            "invoice_date": _iso_date(r["invoice_date"]),
+            "due_date": _iso_date(r["due_date"]),
             "total_amount": r["total_amount"] or 0,
             "paid": r["paid"] or 0,
             "due": due,
@@ -320,8 +331,8 @@ def api_supplier_invoices(supplier_id):
         result.append({
             "id": r["id"],
             "invoice_no": r["invoice_no"],
-            "invoice_date": r["invoice_date"],
-            "due_date": r["due_date"],
+            "invoice_date": _iso_date(r["invoice_date"]),
+            "due_date": _iso_date(r["due_date"]),
             "total_amount": r["total_amount"] or 0,
             "paid": r["paid"] or 0,
             "due": due,
@@ -338,7 +349,11 @@ def api_supplier_invoices(supplier_id):
 BUCKET_ORDER = ["Today", "0-30", "30-60", "60-90", "90-120", "120+"]
 
 def ageing_bucket(due_date_str, today_str):
-    if not due_date_str or due_date_str >= today_str:
+    if not due_date_str:
+        return "Today"
+    if isinstance(due_date_str, date):
+        due_date_str = due_date_str.isoformat()
+    if due_date_str >= today_str:
         return "Today"
     days_overdue = (date.fromisoformat(today_str) - date.fromisoformat(due_date_str)).days
     if days_overdue <= 30:

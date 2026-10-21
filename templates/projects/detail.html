@@ -77,7 +77,7 @@
 <div class="detail-heading">
     <div>
         <h1>{{ project.name }}</h1>
-        <p>{% if project.client %}{{ project.client }} · {% endif %}Created {{ project.created_at[:10] }}</p>
+        <p>{% if project.client %}{{ project.client }} · {% endif %}Created {{ project.created_at|string|truncate(10, True, '') }}</p>
     </div>
     <span class="stage-chip">{{ stage_labels[project.stage] }}</span>
 </div>

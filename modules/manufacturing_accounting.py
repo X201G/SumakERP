@@ -18,14 +18,20 @@ invoices of its own.
 """
 from flask import Blueprint
 from flask import render_template, request, redirect, url_for, flash
-from database import get_connection
+from database import get_connection as _get_connection
 from modules.auth import require_system
 from modules.permissions import enforce_permissions
+from modules.document_database import (
+    install_document_connection_cleanup,
+    managed_document_connection,
+)
 from datetime import date
 
+get_connection = managed_document_connection(_get_connection)
 manufacturing_accounting = Blueprint("manufacturing_accounting", __name__)
 manufacturing_accounting.before_request(require_system("manufacturing"))
 manufacturing_accounting.before_request(enforce_permissions)
+install_document_connection_cleanup(manufacturing_accounting)
 
 def invoice_status(total_amount, paid):
     total = total_amount or 0
@@ -284,6 +290,7 @@ def add_purchase_payment():
     conn = get_connection()
     cursor = conn.cursor()
     if request.method == "POST":
+        cursor.execute("BEGIN IMMEDIATE")
         invoice_id = request.form.get("invoice_id") or None
         supplier_id = request.form["supplier_id"]
         payment_date = request.form["payment_date"]
@@ -322,6 +329,7 @@ def edit_purchase_payment(payment_id):
     conn = get_connection()
     cursor = conn.cursor()
     if request.method == "POST":
+        cursor.execute("BEGIN IMMEDIATE")
         payment_date = request.form["payment_date"]
         amount = request.form["amount"]
         payment_mode = request.form.get("payment_mode") or "cash"
@@ -361,6 +369,7 @@ def edit_purchase_payment(payment_id):
 def delete_purchase_payment(payment_id):
     conn = get_connection()
     cursor = conn.cursor()
+    cursor.execute("BEGIN IMMEDIATE")
     cursor.execute("SELECT invoice_id FROM mfg_purchase_payments WHERE id = ?", (payment_id,))
     row = cursor.fetchone()
     invoice_id = row["invoice_id"] if row else None

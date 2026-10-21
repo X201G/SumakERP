@@ -1,10 +1,17 @@
 from flask import Blueprint
 from flask import render_template, request, redirect, url_for, flash
-from database import get_connection
+from database import get_connection as _get_connection
+from modules.document_database import (
+    install_document_connection_cleanup,
+    managed_document_connection,
+    next_document_number,
+)
 from modules.stock import add_stock_movement
 from modules.auth import require_system
 
 purchases = Blueprint("purchases", __name__)
+get_connection = managed_document_connection(_get_connection)
+install_document_connection_cleanup(purchases)
 purchases.before_request(require_system("distribution"))
 
 
@@ -73,14 +80,9 @@ def add_purchase_order():
         valid_till = request.form.get("valid_till")
         remarks = request.form.get("remarks")
         prefix = "PO-" + order_date.replace("-", "") + "-"
-        cursor.execute("SELECT order_no FROM purchase_orders WHERE order_no LIKE ? ORDER BY order_no DESC LIMIT 1", (prefix + "%",))
-        last = cursor.fetchone()
-        if last:
-            last_num = int(last["order_no"].split("-")[-1])
-            next_num = last_num + 1
-        else:
-            next_num = 1
-        order_no = prefix + str(next_num).zfill(4)
+        order_no = next_document_number(
+            cursor, "purchase_order", order_date.replace("-", ""), prefix, prefix
+        )
         cursor.execute ("""
             INSERT INTO purchase_orders (order_no, supplier_id, transporter_id, order_date, kind_attn, sup_ref_no, cr_days, valid_till, remarks)
             VALUES (?,?,?,?,?,?,?,?,?)
@@ -204,7 +206,10 @@ def add_purchase_invoice():
         cr_days = request.form.get("cr_days") or 0
         due_date = request.form.get("due_date")
         remarks = request.form.get("remarks")
-        invoice_no = "PI-" + invoice_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM purchase_invoices").fetchone()[0]) + 1). zfill(4)
+        invoice_prefix = "PI-" + invoice_date.replace("-", "") + "-"
+        invoice_no = next_document_number(
+            cursor, "purchase_invoice", "global", invoice_prefix, "PI-"
+        )
         cursor.execute("""
             INSERT INTO purchase_invoices (invoice_no, invoice_date, supplier_id, transporter_id, sup_invoice_no, sup_invoice_date, cr_days, due_date, remarks)
             VALUES (?,?,?,?,?,?,?,?,?)
@@ -323,7 +328,10 @@ def add_purchase_grn():
         transporter_id = request.form.get("transporter_id")
         grn_date = request.form.get("grn_date")
         remarks = request.form.get("remarks")
-        grn_no = "GRN-" + grn_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM purchase_grn").fetchone()[0]) + 1).zfill(4)
+        grn_prefix = "GRN-" + grn_date.replace("-", "") + "-"
+        grn_no = next_document_number(
+            cursor, "purchase_grn", "global", grn_prefix, "GRN-"
+        )
         cursor.execute("""
             INSERT INTO purchase_grn (grn_no, grn_date, supplier_id, transporter_id, remarks)
             VALUES (?,?,?,?,?)
@@ -444,7 +452,10 @@ def add_purchase_return():
         return_date = request.form.get("return_date")
         reason = request.form.get("reason")
         remarks = request.form.get("remarks")
-        return_no = "PR-" + return_date.replace("-", "") + "-" + str(int(cursor.execute("SELECT COUNT(*) FROM purchase_returns").fetchone()[0]) + 1).zfill(4)
+        return_prefix = "PR-" + return_date.replace("-", "") + "-"
+        return_no = next_document_number(
+            cursor, "purchase_return", "global", return_prefix, "PR-"
+        )
         cursor.execute("""
             INSERT INTO purchase_returns (return_no, return_date, supplier_id, transporter_id, reason, remarks)
             VALUES (?,?,?,?,?,?)

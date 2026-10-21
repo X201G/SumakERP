@@ -1,4 +1,5 @@
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ if str(ROOT) not in sys.path:
 
 import app as app_module
 import database
+import modules.projects as projects_module
 
 
 @pytest.fixture
@@ -44,6 +46,13 @@ def login_as(client, username, system):
         session["full_name"] = username
         session["role"] = user["role"]
         session["system"] = system
+
+
+def test_project_date_binding_is_backend_compatible(monkeypatch):
+    monkeypatch.setattr(database, "is_postgres_configured", lambda: True)
+    assert projects_module._date_value("2026-10-20") == date(2026, 10, 20)
+    monkeypatch.setattr(database, "is_postgres_configured", lambda: False)
+    assert projects_module._date_value("2026-10-20") == "2026-10-20"
 
 
 def test_project_board_stage_detail_and_tasks(client):

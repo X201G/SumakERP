@@ -15,14 +15,20 @@ to be one shared view across both processes, not two separate ones to check.
 """
 from flask import Blueprint
 from flask import render_template, request, redirect, url_for, flash
-from database import get_connection
+from database import get_connection as _get_connection
 from modules.auth import require_system
 from modules.permissions import enforce_permissions
+from modules.document_database import (
+    install_document_connection_cleanup,
+    managed_document_connection,
+)
 from datetime import date, timedelta
 
+get_connection = managed_document_connection(_get_connection)
 resharpening = Blueprint("resharpening", __name__)
 resharpening.before_request(require_system("manufacturing"))
 resharpening.before_request(enforce_permissions)
+install_document_connection_cleanup(resharpening)
 
 RESHARPEN_STAGES = [
     {"key": "resharpening", "label": "Resharpening"},
@@ -279,6 +285,7 @@ def add_batch():
             conn.close()
             return redirect(url_for("resharpening.add_batch"))
 
+        cursor.execute("BEGIN IMMEDIATE")
         sold_qty = get_sold_qty(cursor, customer_id, tool_id)
         if sold_qty > 0:
             outstanding = get_resharpen_outstanding_qty(cursor, customer_id, tool_id)
@@ -288,7 +295,6 @@ def add_batch():
                 conn.close()
                 return redirect(url_for("resharpening.add_batch"))
 
-        cursor.execute("BEGIN IMMEDIATE")
         batch_no = generate_batch_no(batch_date, cursor)
         cursor.execute("""
             INSERT INTO mfg_resharpen_batches (batch_no, batch_date, tool_id, customer_id, quantity, remarks)
@@ -631,6 +637,7 @@ def send_operation(batch_id):
     conn = get_connection()
     cursor = conn.cursor()
 
+    cursor.execute("BEGIN IMMEDIATE")
     cursor.execute("SELECT quantity FROM mfg_resharpen_batches WHERE id = ?", (batch_id,))
     batch_row = cursor.fetchone()
     if batch_row and quantity_sent > batch_row["quantity"]:
@@ -644,7 +651,6 @@ def send_operation(batch_id):
         flash("This batch already has a shipment in progress - receive it before sending another.", "danger")
         return redirect(url_for("resharpening.batch_detail", batch_id=batch_id))
 
-    cursor.execute("BEGIN IMMEDIATE")
     cursor.execute("""
         INSERT INTO mfg_resharpen_stages (batch_id, stages, vendor_id, dispatch_date, quantity_sent, remarks)
         VALUES (?,?,?,?,?,?)
@@ -1341,6 +1347,7 @@ def add_invoice(batch_id):
         if cr_days:
             due_date = (date.fromisoformat(invoice_date) + timedelta(days=cr_days)).isoformat()
 
+        cursor.execute("BEGIN IMMEDIATE")
         cursor.execute("""
             SELECT COALESCE(SUM(mfg_resharpen_challan_items.quantity), 0) as total
             FROM mfg_resharpen_challan_items
@@ -1360,7 +1367,6 @@ def add_invoice(batch_id):
         tax_amount = round(bef_tax_amt * tax_rate / 100, 2)
         amount = round(bef_tax_amt + tax_amount, 2)
 
-        cursor.execute("BEGIN IMMEDIATE")
         invoice_no = generate_invoice_no(invoice_date, cursor)
         cursor.execute("""
             INSERT INTO mfg_resharpen_invoices (invoice_no, invoice_date, customer_id, cr_days, due_date, remarks, total_amount)

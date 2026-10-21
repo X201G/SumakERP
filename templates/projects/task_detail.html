@@ -48,7 +48,7 @@
 <div class="item-heading">
     <div>
         <h1>{{ task.title }}</h1>
-        <p>{% if task.created_at %}Created {{ task.created_at[:10] }}{% endif %}{% if task.updated_at %} · Updated {{ task.updated_at[:10] }}{% endif %}</p>
+        <p>{% if task.created_at %}Created {{ task.created_at|string|truncate(10, True, '') }}{% endif %}{% if task.updated_at %} · Updated {{ task.updated_at|string|truncate(10, True, '') }}{% endif %}</p>
     </div>
     <span class="stage-chip stage-{{ task.stage }}">{{ task_stage_labels[task.stage] }}</span>
 </div>

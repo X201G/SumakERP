@@ -1,9 +1,12 @@
 import os
 import sqlite3
 import sys
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 import pytest
+from werkzeug.security import check_password_hash, generate_password_hash
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -11,6 +14,53 @@ if str(ROOT) not in sys.path:
 
 import app as app_module
 import database
+
+
+@pytest.fixture
+def auth_client(tmp_path, monkeypatch):
+    previous_database = database.DATABASE
+    previous_testing = app_module.app.config.get("TESTING")
+    database.close_postgres_pool()
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    database.DATABASE = str(tmp_path / "auth_test.db")
+    with redirect_stdout(StringIO()):
+        database.create_tables()
+    connection = database.get_connection()
+    try:
+        connection.execute("DELETE FROM users")
+        for username, password, system in (
+            ("system_admin", "distribution-password", "distribution"),
+            ("system_admin", "manufacturing-password", "manufacturing"),
+        ):
+            connection.execute(
+                """INSERT INTO users
+                   (username, password_hash, full_name, role, system)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (
+                    username,
+                    generate_password_hash(password),
+                    f"{system.title()} Admin",
+                    "admin",
+                    system,
+                ),
+            )
+        connection.commit()
+    finally:
+        connection.close()
+
+    app_module.app.config["TESTING"] = True
+    client = app_module.app.test_client()
+    yield client
+    app_module.app.config["TESTING"] = previous_testing
+    database.close_postgres_pool()
+    database.DATABASE = previous_database
+
+
+def login(client, system, password, username="system_admin"):
+    return client.post(
+        "/login",
+        data={"username": username, "password": password, "system": system},
+    )
 
 
 def setup_db(tmp_path):
@@ -135,3 +185,193 @@ def test_legacy_global_username_constraint_migrates_with_foreign_keys(tmp_path):
             ("admin", "duplicate-hash", "delivery"),
         )
     conn.close()
+
+
+def test_login_credentials_are_scoped_to_the_selected_system(auth_client):
+    assert login(auth_client, "distribution", "wrong-password").status_code == 302
+    with auth_client.session_transaction() as session:
+        assert "user_id" not in session
+
+    assert login(auth_client, "distribution", "manufacturing-password").status_code == 302
+    with auth_client.session_transaction() as session:
+        assert "user_id" not in session
+
+    assert login(auth_client, "distribution", "distribution-password").status_code == 302
+    with auth_client.session_transaction() as session:
+        assert session["system"] == "distribution"
+        assert session["username"] == "system_admin"
+
+    assert auth_client.get("/logout").status_code == 302
+    assert login(auth_client, "manufacturing", "manufacturing-password").status_code == 302
+    with auth_client.session_transaction() as session:
+        assert session["system"] == "manufacturing"
+
+
+def test_user_creation_and_password_changes_remain_system_scoped(auth_client):
+    assert login(auth_client, "distribution", "distribution-password").status_code == 302
+    assert auth_client.post(
+        "/users/add",
+        data={
+            "username": "local_user",
+            "full_name": "Local User",
+            "role": "sales",
+            "password": "old-password",
+        },
+    ).status_code == 302
+
+    connection = database.get_connection()
+    try:
+        user = connection.execute(
+            """SELECT id, password_hash, role, system
+               FROM users WHERE username = ? AND system = ?""",
+            ("local_user", "distribution"),
+        ).fetchone()
+        assert user["role"] == "sales"
+        assert user["system"] == "distribution"
+        assert check_password_hash(user["password_hash"], "old-password")
+        connection.execute(
+            """INSERT INTO users (username, password_hash, role, system)
+               VALUES (?, ?, ?, ?)""",
+            (
+                "local_user",
+                generate_password_hash("other-system-password"),
+                "admin",
+                "manufacturing",
+            ),
+        )
+        connection.commit()
+        user_id = user["id"]
+    finally:
+        connection.close()
+
+    assert auth_client.post(
+        f"/users/edit/{user_id}",
+        data={
+            "full_name": "Updated User",
+            "role": "purchase",
+            "is_active": "on",
+            "password": "new-password",
+        },
+    ).status_code == 302
+    connection = database.get_connection()
+    try:
+        updated = connection.execute(
+            """SELECT password_hash, full_name, role, system
+               FROM users WHERE id = ?""",
+            (user_id,),
+        ).fetchone()
+        assert updated["full_name"] == "Updated User"
+        assert updated["role"] == "purchase"
+        assert updated["system"] == "distribution"
+        assert check_password_hash(updated["password_hash"], "new-password")
+    finally:
+        connection.close()
+
+    auth_client.get("/logout")
+    assert login(auth_client, "distribution", "new-password", "local_user").status_code == 302
+    with auth_client.session_transaction() as session:
+        assert session["system"] == "distribution"
+    auth_client.get("/logout")
+    assert login(auth_client, "distribution", "other-system-password", "local_user").status_code == 302
+    with auth_client.session_transaction() as session:
+        assert "user_id" not in session
+    assert login(auth_client, "manufacturing", "other-system-password", "local_user").status_code == 302
+    with auth_client.session_transaction() as session:
+        assert session["system"] == "manufacturing"
+
+
+def test_flow_dashboard_is_manufacturing_scoped(auth_client):
+    with auth_client.session_transaction() as session:
+        session.update(user_id=1, username="system_admin", system="distribution")
+    denied = auth_client.get("/flow")
+    assert denied.status_code == 302
+    assert "system=manufacturing" in denied.headers["Location"]
+
+    with auth_client.session_transaction() as session:
+        session.update(user_id=2, username="system_admin", system="manufacturing")
+    assert auth_client.get("/flow").status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("path", "system"),
+    [("/", "distribution"), ("/flow", "manufacturing")],
+)
+def test_dashboard_connections_close_when_queries_raise(
+    auth_client, monkeypatch, path, system
+):
+    class FailingCursor:
+        def execute(self, *_args, **_kwargs):
+            raise sqlite3.OperationalError("test-only query failure")
+
+    class TrackedConnection:
+        closed = False
+
+        def cursor(self):
+            return FailingCursor()
+
+        def close(self):
+            self.closed = True
+
+    connection = TrackedConnection()
+    monkeypatch.setattr(app_module, "get_connection", lambda: connection)
+    with auth_client.session_transaction() as session:
+        session.update(user_id=1, username="system_admin", system=system)
+
+    with pytest.raises(sqlite3.OperationalError):
+        auth_client.get(path)
+    assert connection.closed
+
+
+def test_user_write_failure_rolls_back_and_connection_remains_usable(auth_client):
+    assert login(auth_client, "distribution", "distribution-password").status_code == 302
+    connection = database.get_connection()
+    try:
+        connection.execute(
+            """CREATE TRIGGER reject_test_auth_user
+               BEFORE INSERT ON users
+               WHEN NEW.username = 'rollback_user'
+               BEGIN SELECT RAISE(ABORT, 'test auth insert rejected'); END"""
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    with pytest.raises(sqlite3.IntegrityError):
+        auth_client.post(
+            "/users/add",
+            data={
+                "username": "rollback_user",
+                "full_name": "Rollback User",
+                "role": "sales",
+                "password": "rollback-password",
+            },
+        )
+
+    connection = database.get_connection()
+    try:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM users WHERE username = ?",
+            ("rollback_user",),
+        ).fetchone()[0] == 0
+        connection.execute("DROP TRIGGER reject_test_auth_user")
+        connection.commit()
+        assert connection.execute("SELECT 1").fetchone()[0] == 1
+    finally:
+        connection.close()
+
+
+def test_duplicate_username_is_only_rejected_within_same_system(auth_client):
+    assert login(auth_client, "distribution", "distribution-password").status_code == 302
+    response = auth_client.post(
+        "/users/add",
+        data={
+            "username": "system_admin",
+            "full_name": "Duplicate User",
+            "role": "sales",
+            "password": "another-password",
+        },
+    )
+    assert response.status_code == 302
+    with auth_client.session_transaction() as session:
+        flashes = session.get("_flashes", [])
+    assert any("username is already taken" in message for _, message in flashes)
