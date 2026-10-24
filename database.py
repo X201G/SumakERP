@@ -6,7 +6,9 @@ import sqlite3
 from werkzeug.security import generate_password_hash
 DATABASE = "sumak_erp.db"
 def get_connection():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, timeout=10)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     conn.row_factory = sqlite3.Row
     return conn
 
