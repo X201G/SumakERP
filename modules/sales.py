@@ -6,6 +6,8 @@ from modules.stock import add_stock_movement
 sales = Blueprint("sales", __name__)
 from modules.auth import require_system
 sales.before_request(require_system("distribution"))
+from modules.permissions import enforce_permissions
+sales.before_request(enforce_permissions)
 
 # ============================================
 # SALES INVOICE

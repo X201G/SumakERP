@@ -8,6 +8,10 @@
 
 <p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">{{ system|title }}-only logins. Admins can manage the users for this system without affecting the other portal.</p>
 
+{% if system == 'distribution' %}
+<p style="margin-bottom: 16px; color: #6b6b6b; font-size: 13.5px;">An "admin" always has full access everywhere. A "staff" user can only open what is ticked on their permissions grid - use <b>Edit Grid</b> to set it.</p>
+{% endif %}
+
 <a href="/users/add" style="display: inline-block; margin-bottom: 16px; background: #e85d04; color: white; padding: 10px 22px; border-radius: 8px; font-size: 13.5px; font-weight: 600;">+ Add User</a>
 {% if projects_setup_available and system != 'projects' %}
 <a href="/users/setup-projects" style="display: inline-block; margin: 0 0 16px 8px; background: #287a72; color: white; padding: 10px 22px; border-radius: 8px; font-size: 13.5px; font-weight: 600;">Set up Projects portal</a>
@@ -49,6 +53,9 @@
                 {% endif %}
             </td>
             <td>
+                {% if system == 'distribution' and user.role != 'admin' %}
+                <a href="/users/{{ user.id }}/permissions">Edit Grid</a> &nbsp;|&nbsp;
+                {% endif %}
                 <a href="/users/edit/{{ user.id }}">Edit</a>
                 {% if user.id != session['user_id'] %}
                 &nbsp;|&nbsp; <a href="/users/delete/{{ user.id }}" onclick="return confirm('Delete this user?')">Delete</a>

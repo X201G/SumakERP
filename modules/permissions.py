@@ -1,11 +1,14 @@
+from functools import wraps
 from flask import g, session, request, flash, redirect, url_for
 from database import get_connection
 
 # ============================================
 # SECTION REGISTRY
 # ============================================
-# One row per feature. Keys are namespaced (mfg_ / resharpen_) so Distribution's
-# own sections can be added into this same table/mechanism later without a rework.
+# One row per feature. Keys are namespaced (mfg_ / resharpen_ / dist_).
+# SECTIONS stays Manufacturing-only on purpose: manufacturing.py loops over it when
+# saving a user's grid, so adding Distribution keys here would pollute that grid.
+# Distribution has its own DIST_SECTIONS below.
 
 SECTIONS = [
     ("mfg_dashboard", "Dashboard"),
@@ -49,16 +52,89 @@ SECTION_GROUPS = [
     ("Resharpening", ["resharpen_batches", "resharpen_challans", "resharpen_invoices", "resharpen_stock"]),
 ]
 
-# Endpoints that any logged-in Manufacturing user may always reach, regardless of
-# their permission grid - a safe landing page so a user with nothing granted yet
-# (including no Dashboard access) never hits a redirect loop.
+# ---- Distribution ----
+
+DIST_SECTIONS = [
+    ("dist_dashboard", "Dashboard"),
+    ("dist_products", "Products"),
+    ("dist_categories", "Categories & Subcategories"),
+    ("dist_units", "Units"),
+    ("dist_hsn", "HSN Codes"),
+    ("dist_customers", "Customers"),
+    ("dist_suppliers", "Suppliers"),
+    ("dist_transporters", "Transporters"),
+    ("dist_sales_quotations", "Sales Quotations"),
+    ("dist_sales_orders", "Sales Orders"),
+    ("dist_proforma_invoices", "Proforma Invoices"),
+    ("dist_sales_challans", "Sales Challans"),
+    ("dist_sales_invoices", "Sales Invoices"),
+    ("dist_sales_returns", "Sales Returns"),
+    ("dist_purchase_orders", "Purchase Orders"),
+    ("dist_purchase_grn", "Purchase GRN"),
+    ("dist_purchase_invoices", "Purchase Invoices"),
+    ("dist_purchase_returns", "Purchase Returns"),
+    ("dist_stock", "Stock"),
+    ("dist_sales_payments", "Sales Payments"),
+    ("dist_purchase_payments", "Purchase Payments"),
+    ("dist_outstanding", "Outstanding / Day Book"),
+]
+
+DIST_SECTION_LABELS = dict(DIST_SECTIONS)
+
+DIST_SECTION_GROUPS = [
+    ("General", ["dist_dashboard"]),
+    ("Masters", ["dist_products", "dist_categories", "dist_units", "dist_hsn",
+                 "dist_customers", "dist_suppliers", "dist_transporters"]),
+    ("Sales", ["dist_sales_quotations", "dist_sales_orders", "dist_proforma_invoices",
+               "dist_sales_challans", "dist_sales_invoices", "dist_sales_returns"]),
+    ("Purchasing", ["dist_purchase_orders", "dist_purchase_grn",
+                    "dist_purchase_invoices", "dist_purchase_returns"]),
+    ("Stock", ["dist_stock"]),
+    ("Payments & Accounting", ["dist_sales_payments", "dist_purchase_payments", "dist_outstanding"]),
+]
+
+
+def sections_for_system(system):
+    return DIST_SECTIONS if system == "distribution" else SECTIONS
+
+
+def section_groups_for_system(system):
+    return DIST_SECTION_GROUPS if system == "distribution" else SECTION_GROUPS
+
+
+def section_labels_for_system(system):
+    return DIST_SECTION_LABELS if system == "distribution" else SECTION_LABELS
+
+
+def no_access_endpoint(system):
+    """Where a user with no grant for a page is sent, per portal."""
+    return "manufacturing.no_access" if system == "manufacturing" else "no_access"
+
+
+# Endpoints that any logged-in user may always reach, regardless of their permission
+# grid - a safe landing page so a user with nothing granted yet (including no
+# Dashboard access) never hits a redirect loop.
 ALWAYS_ALLOWED_ENDPOINTS = {
     "manufacturing.no_access",
+    "no_access",
 }
 
 # ============================================
 # EXACT ROUTE -> (section, action) MAP
 # ============================================
+
+# Some read-only lookup endpoints feed forms in several sections. A value in ENDPOINT_MAP
+# may therefore be a LIST of (section, action) options - any one of them is enough.
+def _either(section):
+    return [(section, "view"), (section, "create")]
+
+_PRODUCT_PICKER = [
+    (s, "create") for s in (
+        "dist_sales_quotations", "dist_sales_orders", "dist_proforma_invoices",
+        "dist_sales_challans", "dist_sales_invoices", "dist_sales_returns",
+        "dist_purchase_orders", "dist_purchase_grn", "dist_purchase_invoices", "dist_purchase_returns",
+    )
+] + [("dist_products", "view"), ("dist_stock", "view")]
 
 ENDPOINT_MAP = {
     # ---- manufacturing.py : dashboard ----
@@ -206,6 +282,112 @@ ENDPOINT_MAP = {
     "manufacturing_accounting.day_book": ("mfg_outstanding", "view"),
     "manufacturing_accounting.sales_day_book": ("mfg_outstanding", "view"),
     "manufacturing_accounting.purchase_day_book": ("mfg_outstanding", "view"),
+
+    # ============================================
+    # DISTRIBUTION
+    # (the dashboard route "/" lives in app.py and uses @permission_required)
+    # ============================================
+
+    # ---- masters.py ----
+    "masters.products_list": ("dist_products", "view"),
+    "masters.add_products": ("dist_products", "create"),
+    "masters.delete_product": ("dist_products", "delete"),
+    "masters.categories_list": ("dist_categories", "view"),
+    "masters.add_category": ("dist_categories", "create"),
+    "masters.edit_category": ("dist_categories", "edit"),
+    "masters.delete_category": ("dist_categories", "delete"),
+    "masters.subcategories_list": ("dist_categories", "view"),
+    "masters.add_subcategory": ("dist_categories", "create"),
+    "masters.edit_subcategory": ("dist_categories", "edit"),
+    "masters.delete_subcategory": ("dist_categories", "delete"),
+    "masters.units_list": ("dist_units", "view"),
+    "masters.add_unit": ("dist_units", "create"),
+    "masters.edit_unit": ("dist_units", "edit"),
+    "masters.delete_unit": ("dist_units", "delete"),
+    "masters.hsn_list": ("dist_hsn", "view"),
+    "masters.add_hsn": ("dist_hsn", "create"),
+    "masters.edit_hsn": ("dist_hsn", "edit"),
+    "masters.delete_hsn": ("dist_hsn", "delete"),
+    "masters.customers_list": ("dist_customers", "view"),
+    "masters.add_customers": ("dist_customers", "create"),
+    "masters.edit_customer": ("dist_customers", "edit"),
+    "masters.delete_customer": ("dist_customers", "delete"),
+    "masters.suppliers_list": ("dist_suppliers", "view"),
+    "masters.add_suppliers": ("dist_suppliers", "create"),
+    "masters.delete_supplier": ("dist_suppliers", "delete"),
+    "masters.transporters_list": ("dist_transporters", "view"),
+    "masters.add_transporter": ("dist_transporters", "create"),
+    "masters.delete_transporter": ("dist_transporters", "delete"),
+
+    # ---- purchases.py ----
+    "purchases.purchase_orders_list": ("dist_purchase_orders", "view"),
+    "purchases.add_purchase_order": ("dist_purchase_orders", "create"),
+    "purchases.view_purchase_order": ("dist_purchase_orders", "view"),
+    "purchases.delete_purchase_order": ("dist_purchase_orders", "delete"),
+    "purchases.purchase_grn_list": ("dist_purchase_grn", "view"),
+    "purchases.add_purchase_grn": ("dist_purchase_grn", "create"),
+    "purchases.view_purchase_grn": ("dist_purchase_grn", "view"),
+    "purchases.delete_purchase_grn": ("dist_purchase_grn", "delete"),
+    "purchases.api_purchase_order": _either("dist_purchase_grn"),
+    "purchases.api_supplier_orders": _either("dist_purchase_grn"),
+    "purchases.purchase_invoices_list": ("dist_purchase_invoices", "view"),
+    "purchases.add_purchase_invoice": ("dist_purchase_invoices", "create"),
+    "purchases.view_purchase_invoice": ("dist_purchase_invoices", "view"),
+    "purchases.delete_purchase_invoice": ("dist_purchase_invoices", "delete"),
+    "purchases.api_purchase_grn": _either("dist_purchase_invoices"),
+    "purchases.api_supplier_grns": _either("dist_purchase_invoices"),
+    "purchases.purchase_returns_list": ("dist_purchase_returns", "view"),
+    "purchases.add_purchase_return": ("dist_purchase_returns", "create"),
+    "purchases.view_purchase_return": ("dist_purchase_returns", "view"),
+    "purchases.delete_purchase_return": ("dist_purchase_returns", "delete"),
+
+    # ---- sales.py ----
+    "sales.sales_quotations_list": ("dist_sales_quotations", "view"),
+    "sales.add_sales_quotation": ("dist_sales_quotations", "create"),
+    "sales.view_sales_quotation": ("dist_sales_quotations", "view"),
+    "sales.delete_sales_quotation": ("dist_sales_quotations", "delete"),
+    "sales.sales_orders_list": ("dist_sales_orders", "view"),
+    "sales.add_sales_order": ("dist_sales_orders", "create"),
+    "sales.view_sales_order": ("dist_sales_orders", "view"),
+    "sales.delete_sales_order": ("dist_sales_orders", "delete"),
+    "sales.api_pending_items": [("dist_sales_invoices", "create")],  # only the Add Sales Invoice form calls this
+    "sales.proforma_invoices_list": ("dist_proforma_invoices", "view"),
+    "sales.add_proforma_invoice": ("dist_proforma_invoices", "create"),
+    "sales.view_proforma_invoice": ("dist_proforma_invoices", "view"),
+    "sales.delete_proforma_invoice": ("dist_proforma_invoices", "delete"),
+    "sales.sales_challans_list": ("dist_sales_challans", "view"),
+    "sales.add_sales_challan": ("dist_sales_challans", "create"),
+    "sales.view_sales_challan": ("dist_sales_challans", "view"),
+    "sales.delete_sales_challan": ("dist_sales_challans", "delete"),
+    "sales.sales_invoices_list": ("dist_sales_invoices", "view"),
+    "sales.add_sales_invoice": ("dist_sales_invoices", "create"),
+    "sales.view_sales_invoice": ("dist_sales_invoices", "view"),
+    "sales.delete_sales_invoice": ("dist_sales_invoices", "delete"),
+    "sales.sales_returns_list": ("dist_sales_returns", "view"),
+    "sales.add_sales_return": ("dist_sales_returns", "create"),
+    "sales.view_sales_return": ("dist_sales_returns", "view"),
+    "sales.delete_sales_return": ("dist_sales_returns", "delete"),
+
+    # ---- stock.py ----
+    "stock.stock_list": ("dist_stock", "view"),
+    "stock.stock_ledger": ("dist_stock", "view"),
+    "stock.api_products_with_stock": _PRODUCT_PICKER,  # product picker used by every sales/purchase form
+
+    # ---- accounting.py ----
+    "accounting.sales_payments_list": ("dist_sales_payments", "view"),
+    "accounting.add_sales_payment": ("dist_sales_payments", "create"),
+    "accounting.edit_sales_payment": ("dist_sales_payments", "edit"),
+    "accounting.delete_sales_payment": ("dist_sales_payments", "delete"),
+    "accounting.api_customer_invoices": _either("dist_sales_payments"),
+    "accounting.purchase_payments_list": ("dist_purchase_payments", "view"),
+    "accounting.add_purchase_payment": ("dist_purchase_payments", "create"),
+    "accounting.edit_purchase_payment": ("dist_purchase_payments", "edit"),
+    "accounting.delete_purchase_payment": ("dist_purchase_payments", "delete"),
+    "accounting.api_supplier_invoices": _either("dist_purchase_payments"),
+    "accounting.outstanding_report": ("dist_outstanding", "view"),
+    "accounting.party_statement": ("dist_outstanding", "view"),
+    "accounting.outstanding_party_detail": ("dist_outstanding", "view"),
+    "accounting.day_book": ("dist_outstanding", "view"),
 }
 
 
@@ -252,6 +434,16 @@ def has_permission(section, action="view"):
     return entry.get(action, False)
 
 
+def _allowed(mapping):
+    options = mapping if isinstance(mapping, list) else [mapping]
+    return any(has_permission(section, action) for section, action in options)
+
+
+def _deny():
+    flash("That section isn't part of your access yet - ask your admin if you need it.", "info")
+    return redirect(url_for(no_access_endpoint(session.get("system"))))
+
+
 def enforce_permissions():
     """Blueprint-level guard: attach with `blueprint.before_request(enforce_permissions)`,
     after `require_system(...)` so login/system checks run first."""
@@ -261,10 +453,18 @@ def enforce_permissions():
     if session.get("role") == "admin":
         return
     mapping = ENDPOINT_MAP.get(endpoint)
-    if not mapping:
-        flash("That section isn't part of your access yet - ask your admin if you need it.", "info")
-        return redirect(url_for("manufacturing.no_access"))
-    section, action = mapping
-    if not has_permission(section, action):
-        flash("That section isn't part of your access yet - ask your admin if you need it.", "info")
-        return redirect(url_for("manufacturing.no_access"))
+    if not mapping or not _allowed(mapping):
+        return _deny()
+
+
+def permission_required(section, action="view"):
+    """Route decorator for routes that live outside a guarded blueprint (e.g. "/" in app.py).
+    Put it BELOW @system_required so login/system checks run first."""
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not has_permission(section, action):
+                return _deny()
+            return view(*args, **kwargs)
+        return wrapped
+    return decorator

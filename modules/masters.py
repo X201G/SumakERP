@@ -4,6 +4,8 @@ from database import get_connection
 from modules.auth import require_system
 masters = Blueprint("masters", __name__)
 masters.before_request(require_system("distribution"))
+from modules.permissions import enforce_permissions
+masters.before_request(enforce_permissions)
 
 
 

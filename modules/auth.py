@@ -3,10 +3,13 @@ import sqlite3
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from database import get_connection
+from modules.permissions import sections_for_system, section_groups_for_system, section_labels_for_system
 
 auth = Blueprint("auth", __name__)
 
-ROLES = ["admin", "sales", "purchase", "store", "accounts"]
+# Distribution (and Manufacturing) use two roles: "admin" = full access, "staff" = restricted to
+# whatever is ticked on their permissions grid (Users -> Edit Grid).
+ROLES = ["admin", "staff"]
 PROJECT_ROLES = ["admin", "user", "external"]
 HIRING_ROLES = ["admin", "recruiter", "hiring_manager", "viewer"]
 DELIVERY_ROLES = ["admin", "dispatcher", "driver"]
@@ -299,18 +302,25 @@ def add_user():
             role = role if role in HIRING_ROLES else "recruiter"
         elif system == "delivery":
             role = role if role in DELIVERY_ROLES else "driver"
+        else:
+            role = role if role in ROLES else "staff"
         conn = get_connection()
         cursor = conn.cursor()
+        new_id = None
         try:
             cursor.execute(
                 "INSERT INTO users (username, password_hash, full_name, role, system) VALUES (?,?,?,?,?)",
                 (username, generate_password_hash(password), full_name, role, system)
             )
+            new_id = cursor.lastrowid
             conn.commit()
             flash("User added successfully!", "success")
         except Exception:
             flash("That username is already taken.", "danger")
         conn.close()
+        if new_id and system == "distribution" and role != "admin":
+            flash("Now tick what this user is allowed to access.", "info")
+            return redirect(url_for("auth.user_permissions", user_id=new_id))
         return redirect(url_for("auth.users_list"))
     system = session.get("system", "distribution")
     if system == "projects":
@@ -333,6 +343,8 @@ def edit_user(user_id):
             role = role if role in HIRING_ROLES else "recruiter"
         elif system == "delivery":
             role = role if role in DELIVERY_ROLES else "driver"
+        else:
+            role = role if role in ROLES else "staff"
         username = request.form.get("username", "").strip()
         if system == "delivery" and not username:
             conn.close()
@@ -382,6 +394,63 @@ def edit_user(user_id):
         return render_template("projects/user_form.html", user=user, roles=PROJECT_ROLES, editing=True, system=system)
     roles = DELIVERY_ROLES if system == "delivery" else HIRING_ROLES if system == "hiring" else ROLES
     return render_template("auth/users.html", users=[], user=user, roles=roles, editing=True, system=system)
+
+# ============================================
+# PERMISSIONS GRID (Distribution) - same idea as Manufacturing's "Edit Grid"
+# ============================================
+
+@auth.route("/users/<int:user_id>/permissions", methods=["GET", "POST"])
+@roles_required("admin")
+def user_permissions(user_id):
+    system = session.get("system", "distribution")
+    if system != "distribution":
+        flash("Permission grids are managed from the Distribution users page.", "danger")
+        return redirect(url_for("auth.users_list"))
+    sections = sections_for_system(system)
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ? AND system = ?", (user_id, system))
+    user = cursor.fetchone()
+    if not user:
+        conn.close()
+        flash("User not found.", "danger")
+        return redirect(url_for("auth.users_list"))
+    if user["role"] == "admin":
+        conn.close()
+        flash("Admins always have full access - they don't need a permissions grid.", "info")
+        return redirect(url_for("auth.users_list"))
+
+    if request.method == "POST":
+        keys = [key for key, _label in sections]
+        placeholders = ",".join("?" * len(keys))
+        cursor.execute(
+            f"DELETE FROM permissions WHERE user_id = ? AND section IN ({placeholders})",
+            (user_id, *keys),
+        )
+        for section in keys:
+            can_view = 1 if request.form.get(f"view_{section}") else 0
+            can_create = 1 if request.form.get(f"create_{section}") else 0
+            can_edit = 1 if request.form.get(f"edit_{section}") else 0
+            can_delete = 1 if request.form.get(f"delete_{section}") else 0
+            if can_view or can_create or can_edit or can_delete:
+                cursor.execute(
+                    "INSERT INTO permissions (user_id, section, can_view, can_create, can_edit, can_delete) VALUES (?,?,?,?,?,?)",
+                    (user_id, section, can_view, can_create, can_edit, can_delete),
+                )
+        conn.commit()
+        conn.close()
+        flash("Permissions updated successfully!", "success")
+        return redirect(url_for("auth.users_list"))
+
+    cursor.execute(
+        "SELECT section, can_view, can_create, can_edit, can_delete FROM permissions WHERE user_id = ?",
+        (user_id,),
+    )
+    existing = {row["section"]: row for row in cursor.fetchall()}
+    conn.close()
+    return render_template("auth/user_permissions.html", user=user,
+                           groups=section_groups_for_system(system),
+                           labels=section_labels_for_system(system), existing=existing)
 
 @auth.route("/users/delete/<int:user_id>")
 @roles_required("admin")

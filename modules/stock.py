@@ -4,6 +4,8 @@ from database import get_connection
 stock = Blueprint("stock", __name__)
 from modules.auth import require_system
 stock.before_request(require_system("distribution"))
+from modules.permissions import enforce_permissions
+stock.before_request(enforce_permissions)
 
 
 def add_stock_movement(cursor, product_id, movement_type, quantity, source_type, source_id, source_no, movement_date, rate=0):

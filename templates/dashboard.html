@@ -61,33 +61,33 @@
 <h2 style="margin-bottom: 20px;">Welcome to SUMAK ERP</h2>
 
 <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px;">
-    <a href="/products" class="dashboard-stat">
+    {% if has_perm('dist_products') %}<a href="/products" class="dashboard-stat">
         <div class="dashboard-stat-label">Products</div>
         <div class="dashboard-stat-value">{{ total_products }}</div>
-    </a>
-    <a href="/customers" class="dashboard-stat">
+    </a>{% endif %}
+    {% if has_perm('dist_customers') %}<a href="/customers" class="dashboard-stat">
         <div class="dashboard-stat-label">Customers</div>
         <div class="dashboard-stat-value">{{ total_customers }}</div>
-    </a>
-    <a href="/suppliers" class="dashboard-stat">
+    </a>{% endif %}
+    {% if has_perm('dist_suppliers') %}<a href="/suppliers" class="dashboard-stat">
         <div class="dashboard-stat-label">Suppliers</div>
         <div class="dashboard-stat-value">{{ total_suppliers }}</div>
-    </a>
-    <a href="/sales-invoices" class="dashboard-stat">
+    </a>{% endif %}
+    {% if has_perm('dist_sales_invoices') %}<a href="/sales-invoices" class="dashboard-stat">
         <div class="dashboard-stat-label">Sales Invoices</div>
         <div class="dashboard-stat-value">{{ total_sales_invoices }}</div>
-    </a>
-    <a href="/purchase-orders" class="dashboard-stat">
+    </a>{% endif %}
+    {% if has_perm('dist_purchase_orders') %}<a href="/purchase-orders" class="dashboard-stat">
         <div class="dashboard-stat-label">Purchase Orders</div>
         <div class="dashboard-stat-value">{{ total_purchase_orders }}</div>
-    </a>
+    </a>{% endif %}
 </div>
 
 <h3 style="margin-bottom: 12px;">Quick Links</h3>
 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-    <a href="/products" class="dashboard-link">🔧 Products</a>
-    <a href="/sales-invoices" class="dashboard-link">🧾 Sales Invoices</a>
-    <a href="/purchase-orders" class="dashboard-link">📋 Purchase Orders</a>
-    <a href="/stock" class="dashboard-link">📦 Stock</a>
+    {% if has_perm('dist_products') %}<a href="/products" class="dashboard-link">🔧 Products</a>{% endif %}
+    {% if has_perm('dist_sales_invoices') %}<a href="/sales-invoices" class="dashboard-link">🧾 Sales Invoices</a>{% endif %}
+    {% if has_perm('dist_purchase_orders') %}<a href="/purchase-orders" class="dashboard-link">📋 Purchase Orders</a>{% endif %}
+    {% if has_perm('dist_stock') %}<a href="/stock" class="dashboard-link">📦 Stock</a>{% endif %}
 </div>
 {% endblock %}

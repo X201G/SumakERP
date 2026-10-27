@@ -1,6 +1,6 @@
 from flask import Flask, redirect, render_template, request, send_from_directory, session, url_for
 from database import create_tables, get_connection
-from modules.auth import auth, system_required
+from modules.auth import auth, system_required, login_required
 
 app = Flask(__name__)
 app.secret_key = "sumak_erp_2026"
@@ -27,7 +27,7 @@ from modules.hiring import hiring
 app.register_blueprint(hiring)
 from modules.delivery import delivery
 app.register_blueprint(delivery)
-from modules.permissions import has_permission
+from modules.permissions import has_permission, permission_required
 app.jinja_env.globals["has_perm"] = has_permission
 
 
@@ -43,8 +43,14 @@ def delivery_service_worker():
     return response
 
 
+@app.route("/no-access")
+@login_required
+def no_access():
+    return render_template("no_access.html")
+
 @app.route("/")
 @system_required("distribution")
+@permission_required("dist_dashboard")
 def index():
     conn = get_connection()
     cursor = conn.cursor()

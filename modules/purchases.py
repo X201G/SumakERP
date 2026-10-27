@@ -6,6 +6,8 @@ from modules.auth import require_system
 
 purchases = Blueprint("purchases", __name__)
 purchases.before_request(require_system("distribution"))
+from modules.permissions import enforce_permissions
+purchases.before_request(enforce_permissions)
 
 
 # ============================================

@@ -378,55 +378,55 @@
 
             <div class="nav-section">
                 <div class="nav-label">MAIN</div>
-                <a href="/" class="nav-item">🏠 Dashboard</a>
+                {% if has_perm('dist_dashboard') %}<a href="/" class="nav-item">🏠 Dashboard</a>{% endif %}
                 <a href="/flow" class="nav-item {% if request.path == '/flow' %}active{% endif %}">🔄 Flow</a>
             </div>
 
-            <div class="nav-section">
+            {% if has_perm('dist_units') or has_perm('dist_categories') or has_perm('dist_hsn') or has_perm('dist_customers') or has_perm('dist_suppliers') or has_perm('dist_products') or has_perm('dist_transporters') %}<div class="nav-section">
                 <div class="nav-label nav-toggle" onclick="toggleMenu('masters-menu')">MASTERS <span id="masters-arrow" style="color: #b7e4c7;">▼</span></div>
                 <div id="masters-menu">
-                <a href="/units" class="nav-item">📦 Unit Master</a>
-                <a href="/categories" class="nav-item">🗂️ Category Master</a>
-                <a href="/subcategories" class="nav-item">📁 SubCategory Master</a>
-                <a href="/hsn" class="nav-item">🏷️ HSN Master</a>
-                <a href="/customers" class="nav-item">👥 Customer Master</a>
-                <a href="/suppliers" class="nav-item">🚚 Supplier Master</a>    
-                <a href="/products" class="nav-item">🔧 Product Master</a>
-                <a href="/transporters" class="nav-item">🚛 Transporter Master</a>
+                {% if has_perm('dist_units') %}<a href="/units" class="nav-item">📦 Unit Master</a>{% endif %}
+                {% if has_perm('dist_categories') %}<a href="/categories" class="nav-item">🗂️ Category Master</a>{% endif %}
+                {% if has_perm('dist_categories') %}<a href="/subcategories" class="nav-item">📁 SubCategory Master</a>{% endif %}
+                {% if has_perm('dist_hsn') %}<a href="/hsn" class="nav-item">🏷️ HSN Master</a>{% endif %}
+                {% if has_perm('dist_customers') %}<a href="/customers" class="nav-item">👥 Customer Master</a>{% endif %}
+                {% if has_perm('dist_suppliers') %}<a href="/suppliers" class="nav-item">🚚 Supplier Master</a>{% endif %}    
+                {% if has_perm('dist_products') %}<a href="/products" class="nav-item">🔧 Product Master</a>{% endif %}
+                {% if has_perm('dist_transporters') %}<a href="/transporters" class="nav-item">🚛 Transporter Master</a>{% endif %}
                 </div>
-            </div>
+            </div>{% endif %}
 
-            <div class="nav-section">
+            {% if has_perm('dist_purchase_orders') or has_perm('dist_purchase_invoices') or has_perm('dist_purchase_grn') or has_perm('dist_purchase_returns') or has_perm('dist_sales_invoices') or has_perm('dist_sales_quotations') or has_perm('dist_sales_orders') or has_perm('dist_proforma_invoices') or has_perm('dist_sales_challans') or has_perm('dist_sales_returns') %}<div class="nav-section">
                 <div class="nav-label nav-toggle" onclick="toggleMenu('transactions-menu')">TRANSACTIONS <span id="transactions-arrow" style="color: #b7e4c7;">▼</span></div>
                 <div id="transactions-menu">
-                <a href="/purchase-orders" class="nav-item">📋 Purchase Order</a>  
-                <a href="/purchase-invoices" class="nav-item">🛒 Purchase Invoice</a>
-                <a href="/purchase-grn" class="nav-item">🚚 Purchase GRN</a>
-                <a href="/purchase-returns" class="nav-item">↩️ Purchase Return</a>
-                <a href="/sales-invoices" class="nav-item">🧾 Sales Invoice</a>
-                <a href="/sales-quotations" class="nav-item">📝 Sales Quotation</a>
-                <a href="/sales-orders" class="nav-item">📑 Sales Order</a>
-                <a href="/proforma-invoices" class="nav-item">📄 Proforma Invoice</a>
-                <a href="/sales-challans" class="nav-item">📦 Sales Challan</a>
-                <a href="/sales-returns" class="nav-item">↩️ Sales Return</a>
+                {% if has_perm('dist_purchase_orders') %}<a href="/purchase-orders" class="nav-item">📋 Purchase Order</a>{% endif %}  
+                {% if has_perm('dist_purchase_invoices') %}<a href="/purchase-invoices" class="nav-item">🛒 Purchase Invoice</a>{% endif %}
+                {% if has_perm('dist_purchase_grn') %}<a href="/purchase-grn" class="nav-item">🚚 Purchase GRN</a>{% endif %}
+                {% if has_perm('dist_purchase_returns') %}<a href="/purchase-returns" class="nav-item">↩️ Purchase Return</a>{% endif %}
+                {% if has_perm('dist_sales_invoices') %}<a href="/sales-invoices" class="nav-item">🧾 Sales Invoice</a>{% endif %}
+                {% if has_perm('dist_sales_quotations') %}<a href="/sales-quotations" class="nav-item">📝 Sales Quotation</a>{% endif %}
+                {% if has_perm('dist_sales_orders') %}<a href="/sales-orders" class="nav-item">📑 Sales Order</a>{% endif %}
+                {% if has_perm('dist_proforma_invoices') %}<a href="/proforma-invoices" class="nav-item">📄 Proforma Invoice</a>{% endif %}
+                {% if has_perm('dist_sales_challans') %}<a href="/sales-challans" class="nav-item">📦 Sales Challan</a>{% endif %}
+                {% if has_perm('dist_sales_returns') %}<a href="/sales-returns" class="nav-item">↩️ Sales Return</a>{% endif %}
                 </div>
-            </div>
+            </div>{% endif %}
 
-            <div class="nav-section">
+            {% if has_perm('dist_sales_payments') or has_perm('dist_purchase_payments') or has_perm('dist_outstanding') %}<div class="nav-section">
                 <div class="nav-label nav-toggle" onclick="toggleMenu('accounting-menu')">ACCOUNTING <span id="accounting-arrow" style="color: #b7e4c7;">▼</span></div>
                 <div id="accounting-menu">
-                <a href="/sales-payments" class="nav-item">💰 Payments Received</a>
-                <a href="/purchase-payments" class="nav-item">💸 Payments Made</a>
-                <a href="/outstanding" class="nav-item">📊 Outstanding Report</a>
-                <a href="/daybook" class="nav-item">📒 Day Book</a>
+                {% if has_perm('dist_sales_payments') %}<a href="/sales-payments" class="nav-item">💰 Payments Received</a>{% endif %}
+                {% if has_perm('dist_purchase_payments') %}<a href="/purchase-payments" class="nav-item">💸 Payments Made</a>{% endif %}
+                {% if has_perm('dist_outstanding') %}<a href="/outstanding" class="nav-item">📊 Outstanding Report</a>{% endif %}
+                {% if has_perm('dist_outstanding') %}<a href="/daybook" class="nav-item">📒 Day Book</a>{% endif %}
                 </div>
 
-            </div>
+            </div>{% endif %}
 
-            <div class="nav-section">
+            {% if has_perm('dist_stock') %}<div class="nav-section">
                 <div class="nav-label">INVENTORY</div>
-                <a href="/stock" class="nav-item">📦 Stock</a>
-            </div>
+                {% if has_perm('dist_stock') %}<a href="/stock" class="nav-item">📦 Stock</a>{% endif %}
+            </div>{% endif %}
 
             <button type="button" class="sidebar-theme-toggle" id="sidebarThemeToggle" aria-label="Switch to light mode">☀️ Light mode</button>
         </div>

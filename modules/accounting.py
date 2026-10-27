@@ -6,6 +6,8 @@ from datetime import date
 
 accounting = Blueprint("accounting", __name__)
 accounting.before_request(require_system("distribution"))
+from modules.permissions import enforce_permissions
+accounting.before_request(enforce_permissions)
 
 def invoice_status(total_amount, paid):
     total = total_amount or 0
